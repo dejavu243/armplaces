@@ -1,10 +1,17 @@
-"""GrinTour graph construction. Bouts are (loser, winner), edges point downward."""
+"""GrinTour: граф мест из пар (проигравший, победитель).
+
+Повторы сворачиваются, встречные победы разрешаются большинством; цикл даёт
+RankingUndefined. От участников без побед выбираются пути длины L и L−1.
+Частоты рёбер этих путей вычисляются динамическим программированием, затем
+рёбра разворачиваются от победителя к проигравшему. Рейтинги не используются.
+Точный алгоритм, пример и ограничения: README.md, раздел «Полный алгоритм Гринёва».
+"""
 from collections import Counter
 from pathlib import Path
 
 import networkx as nx
 
-from read_tournament import drop_simple_cycles
+from armplaces.read_tournament import drop_simple_cycles
 
 
 class RankingUndefined(ValueError):

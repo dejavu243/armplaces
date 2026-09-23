@@ -1,4 +1,10 @@
-"""Run selected independent ArmPlaces experiments."""
+"""CLI независимых экспериментов: python -m simulation.
+
+Флаги --strong-win, --elo, --elo-stamina добавляют модели к серии; --grin-tour
+добавляет эвристическую расстановку мест к каждой выбранной модели.
+Параметры проверяются до запуска; ошибки дают ненулевой код завершения.
+Таблица флагов и примеры команд приведены в README.md.
+"""
 import argparse
 import logging
 from pathlib import Path

@@ -1,10 +1,17 @@
-"""Double-elimination schedule, reproducible models and invariant checks."""
+"""Генеральная последовательность double elimination и три модели исхода.
+
+Сетка заранее компилируется в адреса переходов. Участник выбывает после двух
+поражений; технические проходы не расходуют силы. strong-win сравнивает рейтинги,
+elo выбирает исход случайно, elo-stamina уменьшает силу после реальных боёв.
+Рейтинги обновляются только после турнира; журнал независимо проверяется.
+Формулы, порядок раундов и инварианты подробно описаны в README.md.
+"""
 from dataclasses import dataclass
 from math import exp, isfinite, log
 
 import numpy as np
 
-from topological_sort import rank_tournament
+from armplaces.topological_sort import rank_tournament
 
 MODELS = ('strong-win', 'elo', 'elo-stamina')
 

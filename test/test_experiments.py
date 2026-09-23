@@ -33,6 +33,20 @@ class ExperimentTests(unittest.TestCase):
             config = json.loads(Path(directory, 'config.json').read_text())
             self.assertFalse(config['grin_tour'])
 
+    def test_installed_cli_outside_repository(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = subprocess.run([sys.executable, '-m', 'simulation', '--elo',
+                                     '--participants', '2', '--repeats', '1', '--output', 'out'],
+                                    cwd=directory, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(verify_artifacts(Path(directory)/'out'))
+            historical = subprocess.run([sys.executable, '-m', 'armplaces', '--input',
+                                         str(Path('data/left_hand_75kg').resolve()),
+                                         '--output', 'historical'], cwd=directory,
+                                        capture_output=True, text=True)
+            self.assertEqual(historical.returncode, 0, historical.stderr)
+            self.assertTrue(Path(directory, 'historical', 'places.txt').is_file())
+
     def test_metrics(self):
         self.assertEqual(rank_metrics([3.,2.,1.], {0:1,1:2,2:3})['mae'], 0.)
         self.assertAlmostEqual(rank_metrics([3.,2.,1.], {0:1,1:2,2:3})['spearman'], 1.)

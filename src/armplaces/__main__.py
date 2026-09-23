@@ -1,10 +1,15 @@
-"""Historical protocol entry point; simulation is available via python -m simulation."""
+"""CLI исторических протоколов: python -m armplaces.
+
+Читает файлы выбранной категории, восстанавливает журнал, сохраняет граф и места
+по Гринёву в --output. Визуализация доступна отдельной функцией run_alg.
+Новые эксперименты запускаются через python -m simulation. Команды — в README.md.
+"""
 import argparse
 from pathlib import Path
 
-from grinev_algorithm import TournamentGraphConstructor
-from read_tournament import RESULT_FILE_SUFFIX, read_tournament_files, tournament_recovery
-from topological_sort import calc_and_save_places
+from armplaces.grinev_algorithm import TournamentGraphConstructor
+from armplaces.read_tournament import RESULT_FILE_SUFFIX, read_tournament_files, tournament_recovery
+from armplaces.topological_sort import calc_and_save_places
 
 
 def run_alg(names: dict, pairs: list):

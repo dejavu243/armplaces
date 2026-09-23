@@ -7,14 +7,14 @@ from pathlib import Path
 
 import networkx as nx
 
-from data.DE_OLD_Loser_fix import DE_OLD_loser_fix as DE_OLD_loser
-from data.DE_OLD_Winner_fix import DE_OLD_winner_fix as DE_OLD_winner
-from grinev_algorithm import TournamentGraphConstructor
-from read_tournament import (RESULT_FILE_SUFFIX, drop_simple_cycles, read_names,
+from armplaces.tables.DE_OLD_Loser_fix import DE_OLD_loser_fix as DE_OLD_loser
+from armplaces.tables.DE_OLD_Winner_fix import DE_OLD_winner_fix as DE_OLD_winner
+from armplaces.grinev_algorithm import TournamentGraphConstructor
+from armplaces.read_tournament import (RESULT_FILE_SUFFIX, drop_simple_cycles, read_names,
                              read_tournament_files, tournament_recovery)
-from topological_sort import (get_places, get_target_points_sorted, get_tournament_dict,
+from armplaces.topological_sort import (get_places, get_target_points_sorted, get_tournament_dict,
                               rank_tournament)
-from utils import drop_duplicates, get_max_chains
+from armplaces.utils import drop_duplicates, get_max_chains
 
 
 class HistoricalTests(unittest.TestCase):

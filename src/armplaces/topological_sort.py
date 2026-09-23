@@ -1,9 +1,16 @@
-"""Deterministic GrinTour placement on a DAG; never mutate caller data."""
+"""GrinTour: места из ациклического графа побед.
+
+Единственный источник и его неразветвлённое продолжение получают верхние места.
+Остальные вершины удаляются снизу: сравниваются длина пути, уровни победителей,
+число их побед и порядок жеребьёвки. Степени графа не равны реальным счётчикам боёв.
+Возвращается полная расстановка либо статус undefined; входы не изменяются.
+Формулы и порядок сравнений подробно описаны в README.md.
+"""
 from pathlib import Path
 
 import networkx as nx
 
-from grinev_algorithm import RankingUndefined, TournamentGraphConstructor
+from armplaces.grinev_algorithm import RankingUndefined, TournamentGraphConstructor
 
 
 def get_tournament_dict(graph) -> dict:

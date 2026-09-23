@@ -1,10 +1,17 @@
-"""Read historical DE_OLD protocols without discarding the original bouts."""
+"""Восстановление исторического турнира из текстовых протоколов DE_OLD.
+
+Последняя строка [DE] содержит +, -, >, <: исходы боёв и технических проходов.
+Участники перемещаются по _fix-копиям адресных таблиц; нулевой адрес игнорируется.
+Возвращается исходный список реальных боёв с повторениями. Отдельная функция
+строит проекцию для GrinTour, не изменяя журнал. Ошибки данных не скрываются.
+Форматы и исправления таблиц: README.md, раздел «Исторические протоколы и DE_OLD».
+"""
 from collections import Counter
 from math import isfinite
 from pathlib import Path
 
-from data.DE_OLD_Loser_fix import DE_OLD_loser_fix as DE_OLD_loser
-from data.DE_OLD_Winner_fix import DE_OLD_winner_fix as DE_OLD_winner
+from armplaces.tables.DE_OLD_Loser_fix import DE_OLD_loser_fix as DE_OLD_loser
+from armplaces.tables.DE_OLD_Winner_fix import DE_OLD_winner_fix as DE_OLD_winner
 
 RESULT_FILE_SUFFIX = "[DE]"
 RESULT_FILE_5_6_SUFFIX = "[DE_5-6]"

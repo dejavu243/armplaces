@@ -25,6 +25,7 @@ jobs:
           cache-dependency-path: |
             requirements.txt
             requirements-dev.txt
+            pyproject.toml
       - name: Create project virtual environment
         run: python -m venv .venv
       - name: Install dependencies in project virtual environment
@@ -49,11 +50,13 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: requirements.txt
+          cache-dependency-path: |
+            requirements.txt
+            pyproject.toml
       - name: Create project virtual environment
         run: python -m venv .venv
       - name: Install runtime dependencies
-        run: .venv/bin/python -m pip install -r requirements.txt
+        run: .venv/bin/python -m pip install -e .
       - name: Run all three models and validate artifacts
         shell: bash
         run: |

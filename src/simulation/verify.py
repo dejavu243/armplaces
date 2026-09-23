@@ -1,4 +1,10 @@
-"""Validate exported experiment artifacts: python -m simulation.verify DIRECTORY."""
+"""Проверка полноты артефактов: python -m simulation.verify DIRECTORY.
+
+Проверяются манифест, конечность метрик, записи всех участников и повторов,
+счётчики боёв, номера мест и согласованность статусов Гринёва со сводкой.
+Неполный или повреждённый экспорт завершает CLI ошибкой. Проверка также
+автоматически выполняется после экспериментов; состав файлов — в README.md.
+"""
 import argparse
 import csv
 import json
