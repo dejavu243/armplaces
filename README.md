@@ -497,4 +497,5 @@ done
 
 
 Новые контрольные результаты с фиксацией призёров: [docs/final-places-report.md](docs/final-places-report.md).
-Отчёт `docs/experiment-report.md` сохранён как результат предыдущей версии алгоритма.
+Полная серия с новым GrinTour: [docs/experiment-report.md](docs/experiment-report.md).
+Предыдущая версия сохранена в [docs/experiment-report-before-final-places.md](docs/experiment-report-before-final-places.md).
