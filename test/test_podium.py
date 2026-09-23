@@ -80,6 +80,7 @@ class PodiumTests(unittest.TestCase):
         with self.assertRaises(RankingUndefined):
             TournamentGraphConstructor(names, pairs, fixed_places={'A':1,'B':2,'C':3})
         config = Config(participants=16)
+        seen_reasons = set()
         for repeat in range(100):
             ratings, draw = generate_field(config, repeat)
             result = simulate(config, 'elo', ratings, draw, repeat=repeat)
@@ -88,6 +89,23 @@ class PodiumTests(unittest.TestCase):
             if ranking['status'] == 'partial':
                 self.assertEqual(ranking['places'], {str(i):p for i,p in result['places'].items() if p<=3})
                 self.assertTrue(ranking['reason'])
-                break
+                import json
+                import tempfile
+                from pathlib import Path
+                from armplaces.__main__ import save_graph
+                with tempfile.TemporaryDirectory() as directory:
+                    output = Path(directory)
+                    (output/'edgelist.txt').write_text('stale graph')
+                    saved = save_graph({i:str(i) for i in draw}, bout_pairs, output)
+                    self.assertEqual(saved, ranking)
+                    self.assertEqual(len((output/'places.txt').read_text().splitlines()), 3)
+                    self.assertEqual(json.loads((output/'places.json').read_text()), ranking)
+                    if 'Cycle' in ranking['reason']:
+                        self.assertFalse((output/'edgelist.txt').exists())
+                    else:
+                        self.assertNotEqual((output/'edgelist.txt').read_text(), 'stale graph')
+                seen_reasons.add(ranking['reason'])
+                if len(seen_reasons) == 2:
+                    break
         else:
-            self.fail('Expected a reproducible partial-ranking example')
+            self.fail('Expected both cyclic and disconnected partial-ranking examples')
