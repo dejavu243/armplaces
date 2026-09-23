@@ -145,11 +145,8 @@ def simulate(config: Config, model: str, ratings: list[float], draw: list[int],
     bracket = build_bracket(n)
     sequence = [None] * (2 * len(bracket.matches))
     if n > 1:
-        half = bracket.size // 2
-        for i in range(half):
-            sequence[2*i] = draw[i]
-            if i + half < n:
-                sequence[2*i+1] = draw[i + half]
+        # Draw order occupies cells 1..N; adjacent cells form first-round pairs.
+        sequence[:n] = draw
     if rng is None:
         # Common random numbers for the two Elo variants; separate generator per run.
         stream = 2 if model in ('elo', 'elo-stamina') else 3

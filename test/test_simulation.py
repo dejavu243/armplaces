@@ -29,6 +29,18 @@ class SimulationTests(unittest.TestCase):
                         if destination is not None:
                             self.assertGreater(destination, 2*i+1)
 
+    def test_draw_fills_consecutive_cells_for_every_size(self):
+        for n in range(2, 129):
+            draw = list(reversed(range(n)))
+            result = simulate(Config(participants=n), 'strong-win', [1.]*n, draw)
+            first = [b for b in result['bouts'] if b['stage'] == 'W1']
+            occupied = [who for b in first for who in (b['a'], b['b'])]
+            self.assertEqual(occupied[:n], draw)
+            self.assertTrue(all(who is None for who in occupied[n:]))
+            self.assertEqual(sum(not b['technical'] for b in first), n//2)
+            passes = [b for b in first if b['technical'] and b['winner'] is not None]
+            self.assertEqual(len(passes), n % 2)
+
     def test_singleton(self):
         result = simulate(Config(participants=1), 'elo', [10.], [0], grin_tour=True)
         self.assertEqual(result['places'], {0: 1})
