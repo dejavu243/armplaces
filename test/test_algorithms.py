@@ -56,11 +56,8 @@ class HistoricalTests(unittest.TestCase):
                 read_tournament_files(directory)
 
     def test_legacy_tables_full_tournaments(self):
-        # N=23 has an unresolved, demonstrably corrupt source column; it must fail loudly.
         for n in range(2, 33):
-            if n == 23:
-                continue
-            for seed in range(10):
+            for seed in range(50):
                 rng = random.Random(seed)
                 sequence = list(range(1, n + 1)) + [0] * (6 * n)
                 losses = Counter()
@@ -89,11 +86,11 @@ class HistoricalTests(unittest.TestCase):
         self.assertEqual(original[45][26], 131)
         self.assertEqual(DE_OLD_loser[17][11], 45)
         self.assertIsNot(original, DE_OLD_loser)
+        from data.DE_OLD_Winner import DE_OLD_winner as original_winner
+        self.assertEqual(original_winner[31][21], 82)
+        self.assertEqual(DE_OLD_winner[31][21], 74)
+        self.assertEqual(DE_OLD_winner[40][21], 84)
 
-    def test_corrupt_legacy_column_is_rejected(self):
-        with self.assertRaises(ValueError):
-            tournament_recovery({RESULT_FILE_SUFFIX: (dict(enumerate(map(str, range(23)), 1)),
-                                                      ['+'] * 44)})
 
 
 class GrinTourTests(unittest.TestCase):
