@@ -211,7 +211,8 @@ def simulate(config: Config, model: str, ratings: list[float], draw: list[int],
         for participant in group:
             places[participant] = cursor
         cursor += len(group)
-    ranking = (rank_tournament({i: str(i) for i in draw}, real_pairs) if grin_tour else
+    ranking = (rank_tournament({i: str(i) for i in draw}, real_pairs,
+                               ratings={str(i): rating for i, rating in enumerate(ratings)}) if grin_tour else
                {'status': 'disabled', 'reason': '', 'places': {}})
     result = {'model': model, 'repeat': repeat, 'ratings': list(ratings), 'draw': list(draw),
               'new_ratings': [r+d for r, d in zip(ratings, deltas)],

@@ -49,7 +49,7 @@ def run(output: Path, seed: int = 42, repeats: int = 1000):
                     counts['outcome_rule_errors'] += 1
                 pairs.append((str(bout['loser']+1), str(bout['winner']+1)))
             names = {who+1: str(who+1) for who in draw}
-            ranking = rank_tournament(names, pairs)
+            ranking = rank_tournament(names, pairs, ratings={str(i+1): r for i, r in enumerate(result['ratings'])})
             expected_podium = {str(i+1): place for i, place in result['places'].items() if place <= 3}
             if ranking['places'].get('1') == 1:
                 counts['grin_correct'] += 1

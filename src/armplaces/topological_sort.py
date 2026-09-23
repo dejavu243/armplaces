@@ -9,6 +9,7 @@
 Формулы и порядок сравнений подробно описаны в README.md.
 """
 import json
+from math import isfinite
 from pathlib import Path
 
 import networkx as nx
@@ -88,14 +89,42 @@ def get_places(tournament: dict, graph, fixed_places: dict | None = None) -> dic
     return result
 
 
-def rank_tournament(names: dict, pairs: list) -> dict:
+def rank_by_opponents(names, pairs, ratings, fixed_places):
+    """Resolve graph failure by initial opponent ratings, preserving the podium."""
+    defeated_by = {name: [] for name in names.values()}
+    defeated = {name: [] for name in names.values()}
+    for loser, winner in pairs:
+        if loser:  # Technical passes are not victories over an opponent.
+            defeated_by[loser].append(ratings[winner])
+            defeated[winner].append(ratings[loser])
+    order = {name: index for index, name in enumerate(names.values())}
+
+    def priority(name):
+        return (-min(defeated_by[name], default=float('inf')),
+                -max(defeated[name], default=0), order[name])
+
+    places = dict(fixed_places)
+    remaining = sorted((name for name in names.values() if name not in places), key=priority)
+    places.update({name: place for place, name in enumerate(remaining, len(places)+1)})
+    return places
+
+
+def rank_tournament(names: dict, pairs: list, ratings: dict | None = None) -> dict:
     """Lock the decisive-bout podium, then rank the rest; preserve it on graph failure."""
+    if ratings is not None:
+        if (set(ratings) != set(names.values())
+                or any(not isfinite(r) or r <= 0 for r in ratings.values())):
+            raise ValueError('Expected a finite positive initial rating for every participant')
     podium = infer_podium(names, pairs)
     fixed_places = podium['places']
     try:
         graph = TournamentGraphConstructor(names, pairs, fixed_places=fixed_places).make_graph()
         tournament = get_places(get_tournament_dict(graph), graph, fixed_places=fixed_places)
     except RankingUndefined as exc:
+        if ratings is not None and fixed_places:
+            return {'status': 'ok', 'reason': '',
+                    'method': 'opponent_ratings', 'graph_reason': str(exc),
+                    'places': rank_by_opponents(names, pairs, ratings, fixed_places)}
         return {'status': 'partial' if fixed_places else 'undefined',
                 'reason': str(exc), 'places': dict(fixed_places)}
     return {'status': 'ok', 'reason': '',
