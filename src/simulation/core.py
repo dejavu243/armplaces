@@ -109,8 +109,9 @@ def build_bracket(n: int) -> Bracket:
 def elo_probability(a: float, b: float, dr: float = 200.) -> float:
     if not all(isfinite(x) for x in (a, b, dr)) or dr <= 0:
         raise ValueError('Elo inputs must be finite and dr positive')
-    # Scale before subtracting to avoid overflow for large ratings.
-    z = (b / dr - a / dr) * log(10.)
+    # Subtract first: equal huge ratings with tiny dr must still give exactly 1/2.
+    # An infinite signed difference/exponent safely saturates the logistic function.
+    z = ((b - a) / dr) * log(10.)
     if z >= 0:
         e = exp(-z)
         return e / (1 + e)
@@ -227,13 +228,25 @@ def validate_result(result: dict):
     wins, losses = [0]*n, [0]*n
     real = 0
     for bout in result['bouts']:
+        for side in ('a', 'b'):
+            who = bout[side]
+            if who is not None:
+                if not isinstance(who, int) or not 0 <= who < n or losses[who] >= 2:
+                    raise RuntimeError('Invalid participant in journal')
+                if bout['previous_bouts_'+side] != wins[who]+losses[who]:
+                    raise RuntimeError('Incorrect prior bout count')
         if bout['technical']:
             if bout['a'] is not None and bout['b'] is not None:
                 raise RuntimeError('A technical pass contains two participants')
+            expected_winner = bout['a'] if bout['a'] is not None else bout['b']
+            if bout['winner'] != expected_winner or bout['loser'] is not None:
+                raise RuntimeError('Invalid technical pass result')
             continue
         a, b, winner, loser = (bout[key] for key in ('a', 'b', 'winner', 'loser'))
         if a == b or {a, b} != {winner, loser} or losses[a] >= 2 or losses[b] >= 2:
             raise RuntimeError('Invalid bout in saved journal')
+        if any(not isfinite(bout[key]) or bout[key] < 0 for key in ('effective_a', 'effective_b')):
+            raise RuntimeError('Invalid effective rating')
         if any(not isfinite(bout[key]) or not 0 <= bout[key] <= 1 for key in ('p_a', 'p_start_a')):
             raise RuntimeError('Invalid bout probability')
         wins[winner] += 1

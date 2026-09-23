@@ -49,6 +49,8 @@ class SimulationTests(unittest.TestCase):
 
     def test_probabilities(self):
         self.assertEqual(elo_probability(100, 100), .5)
+        self.assertEqual(elo_probability(1e300, 1e300, 1e-300), .5)
+        self.assertEqual(elo_probability(1e300, 1e299, 1e-300), 1.)
         self.assertAlmostEqual(elo_probability(300, 100), 10/11)
         for a, b in ((100, 700), (1e300, 1), (1, 1e300)):
             p = elo_probability(a, b)

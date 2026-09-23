@@ -53,6 +53,32 @@ class ExperimentTests(unittest.TestCase):
         self.assertAlmostEqual(rank_metrics([3.,2.,1.], {0:3,1:2,2:1})['spearman'], -1.)
         self.assertAlmostEqual(rank_metrics([4.,3.,2.,1.], {0:1,1:2,2:3,3:3})['mae'], .25)
 
+    def test_modified_metrics_and_counters_are_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            run_experiments(Config(participants=4, repeats=2), ['strong-win'], True, path)
+            summary_path = path/'summary.json'
+            original = summary_path.read_text()
+            summary = json.loads(original)
+            summary['strong-win']['bracket']['mae'] += .1
+            summary_path.write_text(json.dumps(summary))
+            with self.assertRaises(ValueError):
+                verify_artifacts(path)
+            summary_path.write_text(original)
+            import csv
+            with (path/'participants.csv').open() as stream:
+                reader = csv.DictReader(stream)
+                fields = reader.fieldnames
+                rows = list(reader)
+            rows[0]['wins'] = str(int(rows[0]['wins'])+1)
+            rows[0]['played'] = str(int(rows[0]['played'])+1)
+            with (path/'participants.csv').open('w', newline='') as stream:
+                writer = csv.DictWriter(stream, fields)
+                writer.writeheader()
+                writer.writerows(rows)
+            with self.assertRaises(RuntimeError):
+                verify_artifacts(path)
+
     def test_cli_errors_and_help(self):
         for args in ([], ['--grin-tour'], ['--elo', '--participants', '129'],
                      ['--elo', '--dr', 'nan'], ['--elo', '--repeats', '0']):
