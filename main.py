@@ -1,47 +1,37 @@
-import logging
+"""Historical protocol entry point; simulation is available via python -m simulation."""
+import argparse
+from pathlib import Path
 
-import matplotlib.pyplot as plt
-import networkx as nx
-
-# import data.left_hand_80kg.left_hand_80kg as lh80
-# import data.left_hand_75kg.left_hand_75kg as lh75
-# import data.right_hand_70kg.right_hand_70kg as rh70
 from grinev_algorithm import TournamentGraphConstructor
+from read_tournament import RESULT_FILE_SUFFIX, read_tournament_files, tournament_recovery
 from topological_sort import calc_and_save_places
 
-from read_tournament import read_tournament_files, tournament_recovery, \
-    RESULT_FILE_SUFFIX, WEIGHTS_FILE_SUFFIX
 
-# names, pairs = lh75.names, lh75.pairs
-# names, pairs = rh70.names, rh70.pairs
-# names, pairs = lh80.names, lh80.pairs
-
-logger = logging.getLogger(__name__)
-logging.basicConfig()
-logger.setLevel(logging.DEBUG)
-
-plt.rcParams["figure.figsize"] = (20, 10)
-
-
-def run_alg():
-    alg = TournamentGraphConstructor(names, pairs)
-    graph = alg.make_graph()
-
-    pos = nx.circular_layout(graph)
-    nx.draw_networkx(graph, pos=pos, with_labels=True, node_size=5000)
+def run_alg(names: dict, pairs: list):
+    import matplotlib.pyplot as plt
+    import networkx as nx
+    graph = TournamentGraphConstructor(names, pairs).make_graph()
+    nx.draw_networkx(graph, pos=nx.circular_layout(graph), with_labels=True)
     plt.show()
 
 
-def save_graph(_names: list, _pairs: list):
-    alg = TournamentGraphConstructor(_names, _pairs)
-    alg.save_edgelist()
-    calc_and_save_places(_names, _pairs)
+def save_graph(names: dict, pairs: list, output: Path = Path(".")):
+    output.mkdir(parents=True, exist_ok=True)
+    TournamentGraphConstructor(names, pairs).save_edgelist(output / "edgelist.txt")
+    return calc_and_save_places(names, pairs, output / "places.txt")
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    files = read_tournament_files('./data/left_hand_75kg/')
-    pairs = tournament_recovery(files)
-    weights = files[WEIGHTS_FILE_SUFFIX]
-    names = files[RESULT_FILE_SUFFIX][0]
 
-    save_graph(names, pairs)
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--input", type=Path, default=Path("data/left_hand_75kg"))
+    parser.add_argument("--output", type=Path, default=Path("results/historical"))
+    args = parser.parse_args()
+    try:
+        files = read_tournament_files(args.input)
+        save_graph(files[RESULT_FILE_SUFFIX][0], tournament_recovery(files), args.output)
+    except ValueError as exc:
+        parser.error(str(exc))
+
+
+if __name__ == "__main__":
+    main()

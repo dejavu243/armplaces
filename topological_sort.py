@@ -1,205 +1,93 @@
-"""Применение топологической сортировки для расстановки мест в турнире
+"""Deterministic GrinTour placement on a DAG; never mutate caller data."""
+from pathlib import Path
 
-    Algorithm
-    1. Set first 3 (or 4) places
-    2. Find all target nodes
-    3. Find mean level player loose and max wins in winners
-    4. Set places in ascending order. If there are two identical mean, then compare by max wins
-    5. Delete targets
-    6. If there are no nodes unvisited than exit, else go to 2.
-"""
-import pathlib
-
-import matplotlib.pyplot as plt
-import networkx
 import networkx as nx
 
-import logging
-
-import data.left_hand_75kg.left_hand_75kg as lh75
-import data.right_hand_70kg.right_hand_70kg as rh70
-import data.left_hand_80kg.left_hand_80kg as lh80
-from grinev_algorithm import TournamentGraphConstructor
-
-plt.rcParams["figure.figsize"] = (20, 10)
-logger = logging.getLogger(__name__)
-logging.basicConfig()
-logger.setLevel(logging.INFO)
+from grinev_algorithm import RankingUndefined, TournamentGraphConstructor
 
 
-def get_tournament_dict(_graph: networkx.Graph) -> dict:
-    tournament = {}
-    for node in _graph.nodes():
-        level = _graph.out_degree(node) - _graph.in_degree(node) + 2
-        losses = _graph.in_degree(node)
-        wins = _graph.out_degree(node)
-        # print(node, level)
-        for node_adj in _graph.nodes():
-            if (node, node_adj) in _graph.edges():
-                # weight = _graph.get_edge_data(node, node_adj)['weight']
-                weight = 1
-                level += (weight - 1)
-                wins += (weight - 1)
-                # print(node, node_adj, weight)
-            elif (node_adj, node) in _graph.edges():
-                # weight = _graph.get_edge_data(node_adj, node)['weight']
-                weight = 1
-                level -= (weight - 1)
-                losses += (weight - 1)
-                # print(node_adj, node, weight)
-        tournament[node] = {"level": level, "losses": losses, "wins": wins}
-
-    return tournament
+def get_tournament_dict(graph) -> dict:
+    return {node: {"level": graph.out_degree(node) - graph.in_degree(node) + 2,
+                   "losses": graph.in_degree(node), "wins": graph.out_degree(node)}
+            for node in graph}
 
 
 def get_target_points_sorted(target_points, keys=None, reverse=None):
-    # return sorted  list by some key
-    if not isinstance(keys, list):
-        return sorted(target_points.items(), key=lambda item: item[1][keys], reverse=reverse)
-    else:
-        if reverse is None:
-            order_list = [-1] * len(keys)
-        elif isinstance(reverse, list):
-            order_list = [1 if x == True else -1 for x in reverse]
-        elif reverse is not None:
-            direction = 1 if reverse == True else -1
-            order_list = [direction] * len(keys)
-
-        if len(keys) == 2:
-            return sorted(target_points.items(), key=lambda item: (
-                order_list[0] * item[1][keys[0]], order_list[1] * item[1][keys[1]]))
-        elif len(keys) == 3:
-            return sorted(target_points.items(),
-                          key=lambda item: (
-                              order_list[0] * item[1][keys[0]], order_list[1] * item[1][keys[1]],
-                              order_list[2] * item[1][keys[2]]))
-        elif len(keys) == 4:
-            return sorted(target_points.items(),
-                          key=lambda item: (
-                              order_list[0] * item[1][keys[0]], order_list[1] * item[1][keys[1]],
-                              order_list[2] * item[1][keys[2]], order_list[3] * item[1][keys[3]]))
+    """Sort ascending by default; True means descending for each selected key."""
+    keys = keys if isinstance(keys, list) else [keys]
+    directions = reverse if isinstance(reverse, list) else [bool(reverse)] * len(keys)
+    if len(directions) != len(keys):
+        raise ValueError("keys and reverse must have matching lengths")
+    return sorted(target_points.items(), key=lambda item: tuple(
+        (-1 if descending else 1) * item[1][key]
+        for key, descending in zip(keys, directions)))
 
 
-def get_places(_tournament: dict, _graph: networkx.Graph):
-    init_graph = _graph.copy()
-    print(f"{init_graph}")
-    source = [x for x in _graph.nodes() if _graph.out_degree(x) > 0 and _graph.in_degree(x) == 0][
-        0]  # only one source, first place
-    targets = [x for x in _graph.nodes() if _graph.out_degree(x) == 0 and _graph.in_degree(x) > 0]
-    logger.debug("source node: %s", source)
-    logger.debug("target nodes: %s", targets)
-
-    # 1. set places
-    _tournament[source]["place"] = 1
-    place_up = 1  # lowest place definition
-    logger.debug(f'{source}, place:\t, {_tournament[source]["place"]}')
-    node, position = source, _tournament[source]["place"]
-    logger.debug(node, 'place:\t', _tournament[node]["place"])
-    while len(list(_graph.out_edges(node))) == 1:
-        node = list(_graph.out_edges(node))[0][1]
-        position += 1
-        _tournament[node]["place"] = position
-        logger.debug(f'{node}, place:\t, {_tournament[node]["place"]}')
-
-    place_up = position
-    count, max_count = 0, 100
-    stop_condition = False
-    max_place = len(_tournament)
-    targets_iter = targets.copy()
-    logger.info("max_place: %s", max_place)
-    while not stop_condition:
-        logger.debug("count: %s", count)
-        logger.debug("targets: %s", targets_iter)
-        count += 1
-        if count == max_count:
+def get_places(tournament: dict, graph) -> dict:
+    if not graph or not nx.is_directed_acyclic_graph(graph):
+        raise RankingUndefined("Expected a nonempty acyclic graph")
+    sources = [node for node in graph if graph.in_degree(node) == 0]
+    if len(sources) != 1 or set(tournament) != set(graph):
+        raise RankingUndefined("Graph must have exactly one source and include all participants")
+    result = {node: dict(values) for node, values in tournament.items()}
+    order = {node: i for i, node in enumerate(graph)}
+    source = sources[0]
+    depth = {source: 1}
+    for node in nx.topological_sort(graph):
+        for child in graph.successors(node):
+            depth[child] = max(depth.get(child, 0), depth[node] + 1)
+    assigned = set()
+    node, position = source, 1
+    while True:
+        result[node]["place"] = position
+        assigned.add(node)
+        children = list(graph.successors(node))
+        if len(children) != 1:
             break
+        node, position = children[0], position + 1
+    remaining = graph.copy()
+    next_place = len(graph)
+    while len(assigned) < len(graph):
+        targets = [node for node in remaining if remaining.out_degree(node) == 0
+                   and node not in assigned]
+        if not targets:
+            raise RankingUndefined("No progress while assigning remaining places")
 
-        # calc metrics
-        target_points = {}
-        for target in targets_iter:
-            target_winners = list(_graph.in_edges(target))
-            winners_mean_level = sum([_tournament[winner[0]]["level"] for winner in target_winners]) / len(
-                target_winners)
-            winners_max_level = max([_tournament[winner[0]]["level"] for winner in target_winners])
-            winners_min_level = min([_tournament[winner[0]]["level"] for winner in target_winners])
-            winners_max_wins = max([_tournament[winner[0]]["wins"] for winner in target_winners])
-            try:
-                chain_up_length = len(max(nx.all_simple_paths(_graph, source, target), key=lambda x: len(x)))
-                chain_down_length = len(
-                    max(nx.all_simple_paths(init_graph, target, targets) if target not in targets else [[]],
-                        key=lambda x: len(x)))
-            except:
-                logger.warning("Can't calculate chain up and chain down lengths, setting to zero")
-                chain_up_length = 0
-                chain_down_length = 0
+        def priority(target):
+            winners = list(remaining.predecessors(target))
+            if not winners:
+                raise RankingUndefined("Participant has no ranked path to the winner")
+            levels = [result[winner]["level"] for winner in winners]
+            # Longest path first, then weakest opposition first; places descend.
+            return (-depth[target], min(levels), sum(levels) / len(levels),
+                    max(result[winner]["wins"] for winner in winners), order[target])
 
-            target_points[target] = {"winners_mean_level": winners_mean_level,
-                                     "winners_max_wins": winners_max_wins,
-                                     "chain_up_length": chain_up_length,
-                                     "chain_down_length": chain_down_length,
-                                     "winners_max_level": winners_max_level,
-                                     "winners_min_level": winners_min_level}
-
-        # sort by first important value
-        sorted_targets = get_target_points_sorted(target_points,
-                                                  ["chain_up_length", "winners_min_level", "winners_mean_level",
-                                                   "winners_max_wins"],
-                                                  [False, True, True, True])
-
-        for e in sorted_targets:
-            logger.debug(e)
-
-        # set places
-        for target in sorted_targets:
-            name = target[0]
-            _tournament[name]["place"] = max_place
-            max_place -= 1
-            logger.debug("Name %s set place %d" % (name, _tournament[name]["place"]))
-            if max_place <= place_up:
-                stop_condition = True
-                break
-
-        logger.debug("max_place: %s", max_place)
-        _graph.remove_nodes_from(targets_iter)
-        targets_iter = [x for x in _graph.nodes() if _graph.out_degree(x) == 0 and _graph.in_degree(x) > 0]
-
-        if len(targets_iter) == 0:
-            stop_condition = True
-
-    return _tournament.copy()
+        for target in sorted(targets, key=priority):
+            result[target]["place"] = next_place
+            assigned.add(target)
+            next_place -= 1
+        remaining.remove_nodes_from(targets)
+    if sorted(item["place"] for item in result.values()) != list(range(1, len(graph) + 1)):
+        raise RankingUndefined("Incomplete or duplicate placement")
+    return result
 
 
-def calc_and_save_places(_names: dict, _pairs: dict, filename: pathlib.Path = pathlib.Path("./places.txt")):
-    algorithm = TournamentGraphConstructor(_names, _pairs)
-    graph = algorithm.make_graph()
-    tour = get_tournament_dict(graph)
-    logger.debug("tournament_dict %s", get_tournament_dict(graph))
-    tournament = get_places(tour, graph)
-
-    with open(filename, 'w', encoding="utf-8") as file:
-        for k, v in sorted(tournament.items(), key=lambda x: x[1]['place'] if 'place' in x[1].keys() else -1):
-            if 'place' in v.keys():
-                file.write(f'{v["place"]} {k}\n')
-                msg = f'PLACE:, {v["place"]}, \t{k}\tLEVEL: {v["level"]}, \tW/L: {v["wins"]}/{v["losses"]}'
-                logger.info(msg)
-            else:
-                logger.error(f"There is no place for {k}, {v}")
+def rank_tournament(names: dict, pairs: list) -> dict:
+    """Structured status suitable for simulations; malformed input still raises."""
+    try:
+        graph = TournamentGraphConstructor(names, pairs).make_graph()
+        tournament = get_places(get_tournament_dict(graph), graph)
+    except RankingUndefined as exc:
+        return {"status": "undefined", "reason": str(exc), "places": {}}
+    return {"status": "ok", "reason": "",
+            "places": {name: values["place"] for name, values in tournament.items()}}
 
 
-if __name__ == '__main__':
-    names, pairs = lh75.names, lh75.pairs
-    # names, pairs = lh80.names, lh80.pairs
-    # names, pairs = rh70.names, rh70.pairs
-    # example topological sort
-    logger.info(f"Pairs number: {len(pairs)}")
-    alg = TournamentGraphConstructor(names, pairs)
-    graph = alg.make_graph()
-    top_sort = list(nx.topological_sort(graph))
-    tour = get_tournament_dict(graph)
-    logger.debug("tournament_dict %s", get_tournament_dict(graph))
-
-    tournament = get_places(tour, graph)
-
-    for k, v in sorted(tournament.items(), key=lambda x: x[1]['place']):
-        msg = f'PLACE:, {v["place"]}, \t{k}\tLEVEL: {v["level"]}, \tW/L: {v["wins"]}/{v["losses"]}'
-        logger.info(msg)
+def calc_and_save_places(names: dict, pairs: list, filename: Path = Path("places.txt")):
+    ranking = rank_tournament(names, pairs)
+    if ranking["status"] != "ok":
+        raise RankingUndefined(ranking["reason"])
+    Path(filename).write_text("".join(f"{place} {name}\n" for name, place in
+                                     sorted(ranking["places"].items(), key=lambda item: item[1])),
+                              encoding="utf-8")
+    return ranking

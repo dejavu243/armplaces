@@ -12,14 +12,14 @@ def append2lists(lists: list[list], previous_element: str, element: str) -> list
     lists_upd = []
     for inner_list in lists:
         inner_list_copy = inner_list.copy()
-        if inner_list_copy[-1] != element and inner_list_copy[-1] == previous_element:
+        if inner_list_copy and element not in inner_list_copy and inner_list_copy[-1] == previous_element:
             inner_list_copy.append(element)
         if inner_list_copy not in lists_upd:
             lists_upd.append(inner_list_copy)
     return lists_upd
 
 
-def drop_duplicates(lists: list[list], cut_less: int = 2) -> list[list]:
+def drop_duplicates(lists: list[list], cut_less: int = 0) -> list[list]:
     """Удалить дубликаты и отрезать короткие цепочки"""
     lists_upd = []
     for inner_list in lists:
@@ -31,10 +31,7 @@ def drop_duplicates(lists: list[list], cut_less: int = 2) -> list[list]:
 
 def get_max_chains(lists: list[list]) -> list[list]:
     """Функция нахождения самых длинных цепочек"""
-    try:
-        max_chain_length = max(len(x) for x in lists)
-    except:
-        max_chain_length = 0
+    max_chain_length = max((len(x) for x in lists), default=0)
     max_chains = []
     for inner_list in lists:
         if len(inner_list) == max_chain_length:
@@ -50,7 +47,7 @@ def get_max_chains(lists: list[list]) -> list[list]:
 @dataclass
 class TournamentData:
     id: str
-    names: list
-    pairs: dict
+    names: dict
+    pairs: list
     weights: dict
     with_superfinal: bool = False
