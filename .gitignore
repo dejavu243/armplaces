@@ -11,3 +11,9 @@ ENV/
 edgelist.txt
 places.txt
 /*.docx
+# Local experiments and tooling caches
+/results/
+.ruff_cache/
+*.egg-info/
+/build/
+/dist/

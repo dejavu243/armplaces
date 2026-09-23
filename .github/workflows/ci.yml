@@ -1,0 +1,85 @@
+name: Tests and simulation experiments
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Checks (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+            pyproject.toml
+      - name: Create project virtual environment
+        run: python -m venv .venv
+      - name: Install dependencies in project virtual environment
+        run: .venv/bin/python -m pip install -r requirements-dev.txt
+      - name: Check code
+        run: .venv/bin/python -m ruff check .
+      - name: Run regression and integration tests
+        run: .venv/bin/python -m unittest discover -v
+
+  experiments:
+    name: Experiment (${{ matrix.participants }} participants)
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        participants: [16, 32]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            pyproject.toml
+      - name: Create project virtual environment
+        run: python -m venv .venv
+      - name: Install runtime dependencies
+        run: .venv/bin/python -m pip install -e .
+      - name: Run all three models and validate artifacts
+        shell: bash
+        run: |
+          mkdir -p results/n${{ matrix.participants }}
+          .venv/bin/python -m simulation \
+            --strong-win --elo --elo-stamina --grin-tour \
+            --participants ${{ matrix.participants }} --repeats 1000 --seed 42 \
+            --output results/n${{ matrix.participants }} \
+            2>&1 | tee results/n${{ matrix.participants }}/console.log
+      - name: Publish job summary
+        if: always()
+        shell: bash
+        run: |
+          if test -f results/n${{ matrix.participants }}/report.md; then
+            cat results/n${{ matrix.participants }}/report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Experiment did not finish; inspect job logs and partial artifacts.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload experiment results and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulation-n${{ matrix.participants }}-seed42
+          path: results/n${{ matrix.participants }}/
+          retention-days: 30
+          if-no-files-found: warn
