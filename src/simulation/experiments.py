@@ -64,16 +64,16 @@ def environment():
 def report_markdown(config, summary):
     lines = ['# ArmPlaces: результаты эксперимента', '',
              f'N={config.participants}; повторов на модель: {config.repeats}; seed={config.seed}.', '',
-             '| Модель | Завершено | Сильнейший победил | MAE сетки | Spearman сетки | Гринёв: успешных | Гринёв: неопределённых | MAE Гринёва | Spearman Гринёва |',
-             '|---|---:|---:|---:|---:|---:|---:|---:|---:|']
+             '| Модель | Завершено | Сильнейший победил | MAE сетки | Spearman сетки | Гринёв: полных | Гринёв: только призёры | Гринёв: без мест | MAE Гринёва | Spearman Гринёва |',
+             '|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|']
     def fmt(value):
         return '—' if value is None else f'{value:.6f}'
     for model, item in summary.items():
         lines.append(f"| {model} | {item['completed']} | {fmt(item['strongest_win_rate'])} | "
                      f"{fmt(item['bracket']['mae'])} | {fmt(item['bracket']['spearman'])} | "
-                     f"{item['grin_tour']['samples']} | {fmt(item['grin_undefined_rate'])} | "
+                     f"{item['grin_tour']['samples']} | {fmt(item['grin_partial_rate'])} | {fmt(item['grin_undefined_rate'])} | "
                      f"{fmt(item['grin_tour']['mae'])} | {fmt(item['grin_tour']['spearman'])} |")
-    lines.extend(['', 'Неопределённые результаты Гринёва исключены из его MAE и Spearman.',
+    lines.extend(['', 'MAE и Spearman Гринёва рассчитаны только по полным расстановкам; partial сохраняет призёров.',
                   'Число определённых корреляций указано в summary.json; для N=1 корреляция отсутствует.',
                   'Рейтинг внутри турнира фиксирован, обновление выполняется после окончания.', ''])
     return '\n'.join(lines)
@@ -86,7 +86,7 @@ def run_experiments(config: Config, models, grin_tour: bool, output: Path | str)
     models = [model for model in MODELS if model in models]
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
-    manifest = {'schema_version': 1, 'config': asdict(config), 'models': models,
+    manifest = {'schema_version': 2, 'config': asdict(config), 'models': models,
                 'grin_tour': grin_tour, 'environment': environment(), 'status': 'running'}
     write_json(output/'config.json', manifest)
     logger = logging.getLogger('armplaces.experiments')
@@ -94,7 +94,7 @@ def run_experiments(config: Config, models, grin_tour: bool, output: Path | str)
     handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
-    accumulators = {model: {'completed': 0, 'strongest_wins': 0, 'undefined': Counter(),
+    accumulators = {model: {'completed': 0, 'strongest_wins': 0, 'undefined': Counter(), 'partial': Counter(),
                            'bracket': [], 'grin_tour': []} for model in models}
     participants_fields = ['repeat', 'model', 'participant', 'draw_position', 'rating', 'new_rating',
                            'wins', 'losses', 'played', 'place', 'grin_place', 'grin_status', 'grin_reason']
@@ -120,8 +120,8 @@ def run_experiments(config: Config, models, grin_tour: bool, output: Path | str)
                     accumulator['bracket'].append(rank_metrics(ratings, result['places']))
                     if ranking['status'] == 'ok':
                         accumulator['grin_tour'].append(rank_metrics(ratings, {int(k):v for k,v in ranking['places'].items()}))
-                    elif ranking['status'] == 'undefined':
-                        accumulator['undefined'][ranking['reason']] += 1
+                    elif ranking['status'] in ('undefined', 'partial'):
+                        accumulator[ranking['status']][ranking['reason']] += 1
                     draw_positions = {who: i+1 for i, who in enumerate(draw)}
                     for who in range(config.participants):
                         participants_writer.writerow({'repeat': repeat, 'model': model, 'participant': who,
@@ -142,7 +142,9 @@ def run_experiments(config: Config, models, grin_tour: bool, output: Path | str)
             item = {'completed': accumulator['completed'],
                     'strongest_win_rate': accumulator['strongest_wins']/config.repeats,
                     'grin_undefined_rate': sum(accumulator['undefined'].values())/config.repeats if grin_tour else None,
-                    'grin_undefined_reasons': dict(accumulator['undefined'])}
+                    'grin_undefined_reasons': dict(accumulator['undefined']),
+                    'grin_partial_rate': sum(accumulator['partial'].values())/config.repeats if grin_tour else None,
+                    'grin_partial_reasons': dict(accumulator['partial'])}
             for method in ('bracket', 'grin_tour'):
                 samples = accumulator[method]
                 correlations = [sample['spearman'] for sample in samples if sample['spearman'] is not None]

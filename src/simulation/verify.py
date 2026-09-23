@@ -25,6 +25,8 @@ def verify_artifacts(directory: Path | str):
             raise ValueError(f'Missing or empty artifact: {filename}')
     manifest = json.loads((directory/'config.json').read_text())
     summary = json.loads((directory/'summary.json').read_text())
+    if manifest.get('schema_version') != 2:
+        raise ValueError('Expected artifact schema 2; verify older artifacts with their recorded code revision')
     require_finite(manifest)
     require_finite(summary)
     config = Config(**manifest['config'])
@@ -46,7 +48,7 @@ def verify_artifacts(directory: Path | str):
     if set(records) != expected:
         raise ValueError('Missing tournament records')
     seen = set()
-    totals = {model: {'strongest': 0, 'undefined': Counter(), 'bracket': [], 'grin_tour': []}
+    totals = {model: {'strongest': 0, 'undefined': Counter(), 'partial': Counter(), 'bracket': [], 'grin_tour': []}
               for model in models}
     def group_key(row):
         return int(row['repeat']), row['model']
@@ -75,8 +77,8 @@ def verify_artifacts(directory: Path | str):
                     raise ValueError('Invalid rating or draw position')
                 if row['grin_status'] != ranking['status'] or row['grin_reason'] != ranking['reason']:
                     raise ValueError('Inconsistent GrinTour status')
-                if ranking['status'] == 'ok':
-                    if int(row['grin_place']) != ranking['places'][row['participant']]:
+                if row['participant'] in ranking['places']:
+                    if not row['grin_place'] or int(row['grin_place']) != ranking['places'][row['participant']]:
                         raise ValueError('Inconsistent GrinTour place')
                 elif row['grin_place']:
                     raise ValueError('Unexpected GrinTour place')
@@ -112,8 +114,8 @@ def verify_artifacts(directory: Path | str):
             total['bracket'].append(rank_metrics(result['ratings'], result['places']))
             if ranking['status'] == 'ok':
                 total['grin_tour'].append(rank_metrics(result['ratings'], {int(k): v for k,v in ranking['places'].items()}))
-            elif ranking['status'] == 'undefined':
-                total['undefined'][ranking['reason']] += 1
+            elif ranking['status'] in ('undefined', 'partial'):
+                total[ranking['status']][ranking['reason']] += 1
         if next(bout_groups, None) is not None:
             raise ValueError('Unexpected extra bout group')
     if seen != expected:
@@ -122,11 +124,12 @@ def verify_artifacts(directory: Path | str):
         total = totals[model]
         if item['completed'] != repeats or not isclose(item['strongest_win_rate'], total['strongest']/repeats):
             raise ValueError('Incorrect tournament count or strongest-win rate')
-        if item['grin_undefined_reasons'] != dict(total['undefined']):
-            raise ValueError('Incorrect GrinTour undefined reasons')
-        expected_rate = sum(total['undefined'].values())/repeats if manifest['grin_tour'] else None
-        if item['grin_undefined_rate'] != expected_rate:
-            raise ValueError('Incorrect GrinTour undefined rate')
+        for status in ('undefined', 'partial'):
+            if item[f'grin_{status}_reasons'] != dict(total[status]):
+                raise ValueError(f'Incorrect GrinTour {status} reasons')
+            expected_rate = sum(total[status].values())/repeats if manifest['grin_tour'] else None
+            if item[f'grin_{status}_rate'] != expected_rate:
+                raise ValueError(f'Incorrect GrinTour {status} rate')
         for method in ('bracket', 'grin_tour'):
             samples = total[method]
             correlations = [x['spearman'] for x in samples if x['spearman'] is not None]

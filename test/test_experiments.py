@@ -79,6 +79,24 @@ class ExperimentTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 verify_artifacts(path)
 
+    def test_partial_podium_exports_and_verifies(self):
+        import csv
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            summary = run_experiments(Config(participants=16, repeats=20), ['elo'], True, path)
+            self.assertGreater(summary['elo']['grin_partial_rate'], 0)
+            self.assertEqual(summary['elo']['grin_undefined_rate'], 0)
+            self.assertTrue(verify_artifacts(path))
+            with (path/'participants.csv').open() as stream:
+                rows = list(csv.DictReader(stream))
+            partial = [row for row in rows if row['grin_status'] == 'partial']
+            self.assertTrue(partial)
+            for row in partial:
+                if int(row['place']) <= 3:
+                    self.assertEqual(row['grin_place'], row['place'])
+                else:
+                    self.assertEqual(row['grin_place'], '')
+
     def test_cli_errors_and_help(self):
         for args in ([], ['--grin-tour'], ['--elo', '--participants', '129'],
                      ['--elo', '--dr', 'nan'], ['--elo', '--repeats', '0']):
