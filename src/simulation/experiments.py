@@ -86,7 +86,7 @@ def run_experiments(config: Config, models, grin_tour: bool, output: Path | str)
     models = [model for model in MODELS if model in models]
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
-    manifest = {'schema_version': 2, 'config': asdict(config), 'models': models,
+    manifest = {'schema_version': 3, 'config': asdict(config), 'models': models,
                 'grin_tour': grin_tour, 'environment': environment(), 'status': 'running'}
     write_json(output/'config.json', manifest)
     logger = logging.getLogger('armplaces.experiments')
@@ -133,7 +133,7 @@ def run_experiments(config: Config, models, grin_tour: bool, output: Path | str)
                     for bout in result['bouts']:
                         bouts_writer.writerow({'repeat': repeat, 'model': model, **bout})
                     tournaments.write(json.dumps({key: result[key] for key in
-                        ('repeat', 'model', 'draw', 'champion', 'reset', 'sequence', 'grin_tour')},
+                        ('repeat', 'model', 'draw', 'champion', 'reset', 'sequence', 'grin_tour', 'eliminated_slots', 'bracket')},
                         ensure_ascii=False, allow_nan=False)+'\n')
                 if (repeat+1) % 100 == 0 or repeat+1 == config.repeats:
                     logger.info('Completed %d/%d repetitions for %s', repeat+1, config.repeats, ', '.join(models))

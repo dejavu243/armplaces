@@ -25,8 +25,8 @@ def verify_artifacts(directory: Path | str):
             raise ValueError(f'Missing or empty artifact: {filename}')
     manifest = json.loads((directory/'config.json').read_text())
     summary = json.loads((directory/'summary.json').read_text())
-    if manifest.get('schema_version') != 2:
-        raise ValueError('Expected artifact schema 2; verify older artifacts with their recorded code revision')
+    if manifest.get('schema_version') != 3:
+        raise ValueError('Expected artifact schema 3; verify older artifacts with their recorded code revision')
     require_finite(manifest)
     require_finite(summary)
     config = Config(**manifest['config'])

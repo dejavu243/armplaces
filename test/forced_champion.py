@@ -1,4 +1,4 @@
-"""Проверка непобедимого №1: 1000 турниров для каждого N=2..64.
+"""Проверка непобедимого №1: 1000 турниров для каждого N=2..32.
 
 Участники имеют имена 1..N; жеребьёвка случайная. №1 всегда выигрывает,
 остальные пары получают честный случайный исход. Проверяются чемпион сетки
@@ -23,7 +23,7 @@ def run(output: Path, seed: int = 42, repeats: int = 1000):
         raise ValueError('repeats must be positive; seed must be nonnegative')
     output.mkdir(parents=True, exist_ok=True)
     rows, reasons, examples = [], Counter(), {}
-    for n in range(2, 65):
+    for n in range(2, 33):
         counts = Counter()
         for repeat in range(repeats):
             draw_rng = np.random.default_rng(np.random.SeedSequence([seed, n, repeat, 0]))
@@ -83,7 +83,7 @@ def run(output: Path, seed: int = 42, repeats: int = 1000):
         writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
         writer.writeheader()
         writer.writerows(rows)
-    summary = {'seed': seed, 'repeats_per_size': repeats, 'min_n': 2, 'max_n': 64,
+    summary = {'seed': seed, 'repeats_per_size': repeats, 'min_n': 2, 'max_n': 32,
                'environment': environment(), 'totals': totals, 'grin_incomplete_reasons': dict(reasons)}
     write_json(output/'summary.json', summary)
     write_json(output/'undefined_examples.json', examples)

@@ -50,7 +50,7 @@ class PodiumTests(unittest.TestCase):
 
     def test_all_simulated_sizes_agree_with_bracket_podium(self):
         final_kinds = set()
-        for n in range(2, 65):
+        for n in range(2, 33):
             for repeat in range(5):
                 config = Config(participants=n)
                 ratings, draw = generate_field(config, repeat)

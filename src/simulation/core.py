@@ -1,6 +1,6 @@
 """Генеральная последовательность double elimination и три модели исхода.
 
-Сетка заранее компилируется в адреса переходов. Участник выбывает после двух
+Переходы берутся из DE_OLD_fix для N=2–32; GS содержит ровно 4N ячеек. Участник выбывает после двух
 поражений; технические проходы не расходуют силы. strong-win сравнивает рейтинги,
 elo выбирает исход случайно, elo-stamina уменьшает силу после реальных боёв.
 Рейтинги обновляются только после турнира; журнал независимо проверяется.
@@ -8,10 +8,13 @@ elo выбирает исход случайно, elo-stamina уменьшает
 """
 from dataclasses import dataclass
 from math import exp, isfinite, log
+from functools import lru_cache
 
 import numpy as np
 
 from armplaces.topological_sort import rank_tournament
+from armplaces.tables.DE_OLD_Winner_fix import DE_OLD_winner_fix
+from armplaces.tables.DE_OLD_Loser_fix import DE_OLD_loser_fix
 
 MODELS = ('strong-win', 'elo', 'elo-stamina')
 
@@ -29,8 +32,8 @@ class Config:
     fatigue_rate: float = .05
 
     def validate(self):
-        if isinstance(self.participants, bool) or not isinstance(self.participants, int) or not 1 <= self.participants <= 128:
-            raise ValueError('participants must be an integer in 1..128')
+        if isinstance(self.participants, bool) or not isinstance(self.participants, int) or not 1 <= self.participants <= 32:
+            raise ValueError('participants must be an integer in 1..32; DE_OLD_fix has no tables for N > 32')
         if isinstance(self.repeats, bool) or not isinstance(self.repeats, int) or self.repeats < 1:
             raise ValueError('repeats must be a positive integer')
         if isinstance(self.seed, bool) or not isinstance(self.seed, int) or self.seed < 0:
@@ -56,54 +59,49 @@ class Bracket:
     matches: tuple[Match, ...]
 
 
+@lru_cache(maxsize=32)
 def build_bracket(n: int) -> Bracket:
-    """Compile output references into zero-based addresses of the general sequence."""
-    if not isinstance(n, int) or isinstance(n, bool) or not 1 <= n <= 128:
-        raise ValueError('participants must be an integer in 1..128')
-    size = 1 << (n - 1).bit_length()
+    """Read DE_OLD_fix column N-2; convert one-based addresses to Python indices."""
+    if not isinstance(n, int) or isinstance(n, bool) or not 1 <= n <= 32:
+        raise ValueError('participants must be an integer in 1..32; DE_OLD_fix has no tables for N > 32')
     if n == 1:
         return Bracket(1, ())
-    stages, inputs = [], []
-
-    def add(stage, a, b):
-        index = len(stages)
-        stages.append(stage)
-        inputs.append((a, b))
-        return (index, 0), (index, 1)
-
-    upper, dropped = [], []
-    for i in range(size // 2):
-        winner, loser = add('W1', None, None)
-        upper.append(winner)
-        dropped.append(loser)
-    if size == 2:
-        lower = dropped
-    else:
-        lower = [add('L1', dropped[i], dropped[i+1])[0] for i in range(0, len(dropped), 2)]
-    lower_round = 1
-    for upper_round in range(2, size.bit_length()):
-        outcomes = [add(f'W{upper_round}', upper[i], upper[i+1])
-                    for i in range(0, len(upper), 2)]
-        upper = [outcome[0] for outcome in outcomes]
-        dropped = [outcome[1] for outcome in outcomes]
-        lower_round += 1
-        lower = [add(f'L{lower_round}', survivor, newcomer)[0]
-                 for survivor, newcomer in zip(lower, reversed(dropped), strict=True)]
-        if len(upper) > 1:
-            lower_round += 1
-            lower = [add(f'L{lower_round}', lower[i], lower[i+1])[0]
-                     for i in range(0, len(lower), 2)]
-    winner, loser = add('final', upper[0], lower[0])
-    add('reset', winner, loser)
-    routes = [[None, None] for _ in stages]
-    for index, pair in enumerate(inputs):
-        for side, ref in enumerate(pair):
-            if ref is not None:
-                origin, outcome = ref
-                if origin >= index or routes[origin][outcome] is not None:
-                    raise RuntimeError('Invalid bracket transition')
-                routes[origin][outcome] = 2 * index + side
-    return Bracket(size, tuple(Match(stage, *route) for stage, route in zip(stages, routes)))
+    routes = [(DE_OLD_winner_fix[i][n-2]-1, DE_OLD_loser_fix[i][n-2]-1)
+              for i in range(2*n-1)]
+    # Structural loss counts identify upper/lower matches without choosing outcomes.
+    states = [None]*(4*n)
+    states[:n] = [(0, 0)]*n
+    stages = []
+    for i, (winner_to, loser_to) in enumerate(routes):
+        if any(destination <= 2*i+1 for destination in (winner_to, loser_to)):
+            raise RuntimeError('Invalid DE_OLD_fix forward address')
+        if i >= 2*n-3:
+            stages.append('final' if i == 2*n-3 else 'reset')
+            continue
+        a, b = states[2*i:2*i+2]
+        if a is None or b is None or a[0] != b[0] or a[0] not in (0, 1):
+            raise RuntimeError('Invalid DE_OLD_fix pair')
+        level = max(a[1], b[1])+1
+        stages.append(f'W{level}' if a[0] == 0 else 'L')
+        for destination, state in ((winner_to, (a[0], level)), (loser_to, (a[0]+1, 0))):
+            if destination >= 4*n:
+                if state[0] != 2:
+                    raise RuntimeError('Only eliminated participants may leave GS')
+            else:
+                if states[destination] is not None:
+                    raise RuntimeError('Conflicting DE_OLD_fix address')
+                states[destination] = state
+    # Equal remaining distances to the final define shared lower-bracket places.
+    distance = {}
+    for i in reversed(range(2*n-3)):
+        if stages[i] == 'L':
+            following = routes[i][0]//2
+            distance[i] = 1 + distance.get(following, 0)
+    longest = max(distance.values(), default=0)
+    for i, depth in distance.items():
+        stages[i] = f'L{longest-depth+1}'
+    return Bracket(n, tuple(Match(stage, winner, loser)
+                           for stage, (winner, loser) in zip(stages, routes, strict=True)))
 
 
 def elo_probability(a: float, b: float, dr: float = 200.) -> float:
@@ -143,10 +141,9 @@ def simulate(config: Config, model: str, ratings: list[float], draw: list[int],
     if sorted(draw) != list(range(n)):
         raise ValueError('draw must be a permutation of participant IDs')
     bracket = build_bracket(n)
-    sequence = [None] * (2 * len(bracket.matches))
-    if n > 1:
-        # Draw order occupies cells 1..N; adjacent cells form first-round pairs.
-        sequence[:n] = draw
+    sequence = [None] * (4*n)
+    eliminated_slots = {}
+    sequence[:n] = draw
     if rng is None:
         # Common random numbers for the two Elo variants; separate generator per run.
         stream = 2 if model in ('elo', 'elo-stamina') else 3
@@ -195,6 +192,11 @@ def simulate(config: Config, model: str, ratings: list[float], draw: list[int],
         bouts.append(entry)
         for who, destination in ((winner, match.winner_to), (loser, match.loser_to)):
             if destination is not None:
+                if destination >= len(sequence):
+                    if who is None or losses[who] != 2 or destination+1 in eliminated_slots:
+                        raise RuntimeError('Invalid eliminated-participant address')
+                    eliminated_slots[destination+1] = who
+                    continue
                 if destination <= 2*index+1 or sequence[destination] is not None:
                     raise RuntimeError('Conflicting general-sequence transition')
                 sequence[destination] = who
@@ -204,7 +206,11 @@ def simulate(config: Config, model: str, ratings: list[float], draw: list[int],
     champion = survivors[0]
     places = {champion: 1}
     cursor = 2
-    for group in reversed(list(eliminated.values())):
+    def stage_order(stage):
+        return (1, 0) if stage == 'final' else ((2, 0) if stage == 'reset' else (0, int(stage[1:])))
+
+    for stage in sorted(eliminated, key=stage_order, reverse=True):
+        group = eliminated[stage]
         for participant in group:
             places[participant] = cursor
         cursor += len(group)
@@ -215,7 +221,7 @@ def simulate(config: Config, model: str, ratings: list[float], draw: list[int],
               'new_ratings': [r+d for r, d in zip(ratings, deltas)],
               'wins': wins, 'losses': losses, 'played': played, 'champion': champion,
               'places': places, 'grin_tour': ranking, 'bouts': bouts, 'sequence': sequence,
-              'reset': reset_needed}
+              'reset': reset_needed, 'eliminated_slots': eliminated_slots, 'bracket': 'DE_OLD_fix'}
     validate_result(result)
     return result
 
@@ -223,6 +229,7 @@ def simulate(config: Config, model: str, ratings: list[float], draw: list[int],
 def validate_result(result: dict):
     """Replay counters independently of simulation and check complete output."""
     n = len(result['ratings'])
+    validate_sequence(result)
     wins, losses = [0]*n, [0]*n
     real = 0
     for bout in result['bouts']:
@@ -281,3 +288,40 @@ def validate_result(result: dict):
         expected_podium = {str(i): place for i, place in result['places'].items() if place <= 3}
         if any(ranking['places'][name] != place for name, place in expected_podium.items()):
             raise RuntimeError('GrinTour changed a decisive-bout podium place')
+
+
+def validate_sequence(result: dict):
+    """Replay raw table addresses independently, including eliminated storage slots."""
+    n = len(result['ratings'])
+    if not 1 <= n <= 32 or result.get('bracket') != 'DE_OLD_fix':
+        raise RuntimeError('Expected DE_OLD_fix tournament for N=1..32')
+    draw = result['draw']
+    if sorted(draw) != list(range(n)):
+        raise RuntimeError('Invalid draw')
+    expected = [None]*(4*n)
+    expected[:n] = draw
+    external = {}
+    count = 0 if n == 1 else 2*n-2+int(result['reset'])
+    if len(result['bouts']) != count:
+        raise RuntimeError('Incorrect number of table matches')
+    stages = build_bracket(n).matches
+    for i, bout in enumerate(result['bouts']):
+        if (bout['match'] != i or bout['stage'] != stages[i].stage
+                or bout['technical'] or expected[2*i:2*i+2] != [bout['a'], bout['b']]):
+            raise RuntimeError('Bout does not match the DE_OLD_fix general sequence')
+        for who, table in ((bout['winner'], DE_OLD_winner_fix), (bout['loser'], DE_OLD_loser_fix)):
+            address = table[i][n-2]
+            if address <= 2*i+2:
+                raise RuntimeError('Invalid forward table address')
+            if address > 4*n:
+                if address in external:
+                    raise RuntimeError('Conflicting elimination address')
+                external[address] = who
+            else:
+                if expected[address-1] is not None:
+                    raise RuntimeError('Conflicting GS address')
+                expected[address-1] = who
+    if expected != result['sequence']:
+        raise RuntimeError('Saved GS does not match table transitions')
+    if external != {int(k): v for k, v in result['eliminated_slots'].items()}:
+        raise RuntimeError('Saved elimination slots do not match table transitions')
