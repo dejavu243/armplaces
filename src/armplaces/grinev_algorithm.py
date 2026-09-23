@@ -1,7 +1,8 @@
 """GrinTour: граф мест из пар (проигравший, победитель).
 
-Повторы сворачиваются, встречные победы разрешаются большинством; цикл даёт
-RankingUndefined. От участников без побед выбираются пути длины L и L−1.
+Повторы сворачиваются, встречные победы разрешаются большинством. Доказанные
+по решающим боям призовые места устраняют противоречащие им рёбра; оставшийся
+цикл даёт RankingUndefined. От участников без побед выбираются пути длины L и L−1.
 Частоты рёбер этих путей вычисляются динамическим программированием, затем
 рёбра разворачиваются от победителя к проигравшему. Рейтинги не используются.
 Точный алгоритм, пример и ограничения: README.md, раздел «Полный алгоритм Гринёва».
@@ -19,7 +20,7 @@ class RankingUndefined(ValueError):
 
 
 class TournamentGraphConstructor:
-    def __init__(self, names: dict, pairs: list):
+    def __init__(self, names: dict, pairs: list, fixed_places: dict | None = None):
         self.names = dict(names)
         self.pairs = [tuple(pair) for pair in pairs]
         participants = list(self.names.values())
@@ -30,9 +31,23 @@ class TournamentGraphConstructor:
                 raise ValueError(f"Invalid bout: {pair}")
             if pair[0] != "" and pair[0] not in participants:
                 raise ValueError(f"Unknown participant: {pair[0]}")
+        self.fixed_places = dict(fixed_places or {})
+        if (not set(self.fixed_places) <= set(participants)
+                or sorted(self.fixed_places.values()) != list(range(1, len(self.fixed_places)+1))
+                or len(self.fixed_places) > 3):
+            raise ValueError('Fixed places must be a unique podium prefix')
         self.up = nx.DiGraph()
         self.up.add_nodes_from(participants)
         self.up.add_edges_from(drop_simple_cycles(self.pairs))
+        # Only the graph projection is corrected; the chronological journal is untouched.
+        for loser, winner in list(self.up.edges()):
+            if loser in self.fixed_places and (winner not in self.fixed_places or
+                    self.fixed_places[loser] < self.fixed_places[winner]):
+                self.up.remove_edge(loser, winner)
+        podium = sorted(self.fixed_places, key=self.fixed_places.get)
+        if podium:
+            self.up.add_edges_from((lower, higher) for higher, lower in zip(podium, podium[1:]))
+            self.up.add_edges_from((name, podium[-1]) for name in participants if name not in self.fixed_places)
         if not nx.is_directed_acyclic_graph(self.up):
             raise RankingUndefined("Cycle remains after resolving head-to-head majorities")
 

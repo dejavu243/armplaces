@@ -273,5 +273,13 @@ def validate_result(result: dict):
     if ranking['status'] == 'ok':
         if set(ranking['places']) != set(map(str, range(n))) or sorted(ranking['places'].values()) != list(range(1,n+1)):
             raise RuntimeError('Incomplete GrinTour result')
+    elif ranking['status'] == 'partial':
+        expected_podium = {str(i): place for i, place in result['places'].items() if place <= 3}
+        if ranking['places'] != expected_podium or not ranking['reason']:
+            raise RuntimeError('Partial GrinTour must preserve the decisive-bout podium')
     elif ranking['status'] not in ('undefined', 'disabled') or (ranking['status'] == 'undefined' and not ranking['reason']):
         raise RuntimeError('Invalid GrinTour status')
+    if ranking['status'] == 'ok':
+        expected_podium = {str(i): place for i, place in result['places'].items() if place <= 3}
+        if any(ranking['places'][name] != place for name, place in expected_podium.items()):
+            raise RuntimeError('GrinTour changed a decisive-bout podium place')

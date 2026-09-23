@@ -61,3 +61,33 @@ class PodiumTests(unittest.TestCase):
                 self.assertEqual(podium['places'], {str(i):p for i,p in result['places'].items() if p <= 3}, (n,repeat))
                 final_kinds.add(podium['final_kind'])
         self.assertEqual(final_kinds, {'final','superfinal'})
+
+    def test_fixed_podium_breaks_its_cycles(self):
+        from armplaces.topological_sort import rank_tournament
+        # B and C each beat the other, but C is the semifinal loser.
+        names = {1:'A',2:'B',3:'C'}
+        pairs = [('B','C'),('C','A'),('C','B'),('B','A')]
+        self.assertEqual(rank_tournament(names,pairs),
+                         {'status':'ok','reason':'','places':{'A':1,'B':2,'C':3}})
+        self.assertEqual(pairs[0], ('B','C'))
+
+    def test_remaining_cycle_preserves_the_podium(self):
+        from armplaces.topological_sort import rank_tournament
+        from armplaces.grinev_algorithm import TournamentGraphConstructor, RankingUndefined
+        names = dict(enumerate('ABCDEF'))
+        # A/B/C are proven separately; a cycle among D/E/F must not be invented away.
+        pairs = [('D','E'), ('E','F'), ('F','D')]
+        with self.assertRaises(RankingUndefined):
+            TournamentGraphConstructor(names, pairs, fixed_places={'A':1,'B':2,'C':3})
+        config = Config(participants=16)
+        for repeat in range(100):
+            ratings, draw = generate_field(config, repeat)
+            result = simulate(config, 'elo', ratings, draw, repeat=repeat)
+            bout_pairs = [(str(b['loser']),str(b['winner'])) for b in result['bouts'] if not b['technical']]
+            ranking = rank_tournament({i:str(i) for i in draw}, bout_pairs)
+            if ranking['status'] == 'partial':
+                self.assertEqual(ranking['places'], {str(i):p for i,p in result['places'].items() if p<=3})
+                self.assertTrue(ranking['reason'])
+                break
+        else:
+            self.fail('Expected a reproducible partial-ranking example')
