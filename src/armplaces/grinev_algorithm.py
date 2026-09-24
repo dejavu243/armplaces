@@ -2,12 +2,11 @@
 
 Повторы сворачиваются, встречные победы разрешаются большинством. Доказанные
 по решающим боям призовые места устраняют противоречащие им рёбра; оставшийся
-цикл даёт RankingUndefined. От участников без побед выбираются пути длины L и L−1.
-Частоты рёбер этих путей вычисляются динамическим программированием, затем
+цикл даёт RankingUndefined. Сохраняются все полные пути, включая короткие ветви.
+Частоты рёбер всех путей вычисляются динамическим программированием, затем
 рёбра разворачиваются от победителя к проигравшему. Рейтинги не используются.
 Точный алгоритм, пример и ограничения: README.md, раздел «Полный алгоритм Гринёва».
 """
-from collections import Counter
 from pathlib import Path
 
 import networkx as nx
@@ -73,30 +72,21 @@ class TournamentGraphConstructor:
         return {name: self.make_chains(name) for name in self.find_total_losers()}
 
     def make_graph(self) -> nx.DiGraph:
-        # Count lengths of suffix paths once. Length is measured in edges here.
+        # Every edge of a DAG lies on a complete root-to-terminal path.
+        # Count all such paths through an edge without pruning short branches.
         order = list(nx.topological_sort(self.up))
-        suffix = {node: Counter() for node in order}
-        for node in reversed(order):
-            if self.up.out_degree(node) == 0:
-                suffix[node][0] = 1
+        prefix = {node: int(self.up.in_degree(node) == 0) for node in order}
+        suffix = {node: int(self.up.out_degree(node) == 0) for node in order}
+        for node in order:
             for successor in self.up.successors(node):
-                for length, count in suffix[successor].items():
-                    suffix[node][length + 1] += count
-        weights = Counter()
-        for root in self.find_total_losers():
-            longest = max(suffix[root])
-            prefix = {node: Counter() for node in order}
-            prefix[root][0] = 1
-            for node in order:
-                for successor in self.up.successors(node):
-                    for length, count in prefix[node].items():
-                        prefix[successor][length + 1] += count
-                        for target_length in (longest, longest - 1):
-                            weights[successor, node] += count * suffix[successor].get(
-                                target_length - length - 1, 0)
+                prefix[successor] += prefix[node]
+        for node in reversed(order):
+            for successor in self.up.successors(node):
+                suffix[node] += suffix[successor]
         graph = nx.DiGraph()
         graph.add_nodes_from(self.names.values())
-        graph.add_weighted_edges_from((a, b, count) for (a, b), count in weights.items() if count)
+        graph.add_weighted_edges_from((winner, loser, prefix[loser]*suffix[winner])
+                                     for loser, winner in self.up.edges())
         return graph
 
     def save_edgelist(self, filename: Path | str = "edgelist.txt"):

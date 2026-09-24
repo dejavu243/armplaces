@@ -15,7 +15,7 @@ class OpponentRatingTests(unittest.TestCase):
         tied = [('D','A'), ('E','A'), ('F','A')]
         self.assertEqual(rank_by_opponents(names, tied, ratings, {'A':1,'B':2,'C':3})['D'], 4)
 
-    def test_both_graph_failures_resolved_without_changing_podium_or_journal(self):
+    def test_cycles_resolved_without_changing_podium_or_journal(self):
         reasons = set()
         for repeat in range(100):
             config = Config(participants=16)
@@ -35,7 +35,7 @@ class OpponentRatingTests(unittest.TestCase):
             else:
                 self.assertEqual(old, new)
             self.assertEqual(rank_tournament(names, pairs), old)
-        self.assertEqual(len(reasons), 2)
+        self.assertEqual(reasons, {'Cycle remains after resolving head-to-head majorities'})
 
     def test_invalid_ratings(self):
         for ratings in ({}, {'A':float('nan')}, {'A':0}, {'A':1,'B':2}):

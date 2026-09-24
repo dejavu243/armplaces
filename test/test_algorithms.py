@@ -14,7 +14,7 @@ from armplaces.read_tournament import (RESULT_FILE_SUFFIX, drop_simple_cycles, r
                              read_tournament_files, tournament_recovery)
 from armplaces.topological_sort import (get_places, get_target_points_sorted, get_tournament_dict,
                               rank_tournament)
-from armplaces.utils import drop_duplicates, get_max_chains
+from armplaces.utils import drop_duplicates
 
 
 class HistoricalTests(unittest.TestCase):
@@ -128,7 +128,7 @@ class GrinTourTests(unittest.TestCase):
             alg = TournamentGraphConstructor(names, pairs)
             expected = Counter()
             for chains in alg.make_all_chains().values():
-                for chain in get_max_chains(chains):
+                for chain in chains:
                     expected.update((b, a) for a, b in zip(chain, chain[1:]))
             actual = {(a, b): d['weight'] for a, b, d in alg.make_graph().edges(data=True)}
             self.assertEqual(actual, dict(expected))
