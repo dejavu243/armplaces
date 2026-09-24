@@ -22,7 +22,7 @@ def quoted(value):
 
 
 def render(path, graph, podium, highlighted, marked_edges, title, subtitle, raw_edges,
-           ratings=None):
+           ratings=None, restored=False):
     lines = ['digraph G {',
              'graph [rankdir=BT, bgcolor="#ffffff", pad="0.35", nodesep="0.32", '
              'ranksep="0.55", fontname="DejaVu Sans", fontsize=18, labelloc=t, dpi=130,',
@@ -40,7 +40,7 @@ def render(path, graph, podium, highlighted, marked_edges, title, subtitle, raw_
         if name in podium:
             attrs += ['fillcolor="#fff0b3"', 'color="#a87d16"']
         if name in highlighted:
-            attrs += ['fillcolor="#ffe1de"', 'color="#bf3029"', 'penwidth=2.5']
+            attrs += ['fillcolor="#dcf5e8"', 'color="#18754a"', 'penwidth=2.5'] if restored else ['fillcolor="#ffe1de"', 'color="#bf3029"', 'penwidth=2.5']
             if graph.degree(name) == 0:
                 attrs += ['style="filled,dashed"']
         lines.append(f'{quoted(name)} [{", ".join(attrs)}];')
@@ -49,7 +49,7 @@ def render(path, graph, podium, highlighted, marked_edges, title, subtitle, raw_
         if (a, b) not in raw_edges:
             attrs += ['style=dashed']
         if (a, b) in marked_edges:
-            attrs += ['color="#bf3029"', 'penwidth=2.7']
+            attrs += ['color="#18754a"', 'penwidth=2.7'] if restored else ['color="#bf3029"', 'penwidth=2.7']
         lines.append(f'{quoted(a)} -> {quoted(b)} [{", ".join(attrs)}];')
     lines.append('}')
     source = '\n'.join(lines)
@@ -67,7 +67,7 @@ def main():
         case = json.loads(path.read_text())
         names = dict(enumerate(case['draw']))
         assert rank_tournament(names, case['pairs']) == case['graph_only']
-        podium = case['graph_only']['places']
+        podium = {name: place for name, place in case['graph_only']['places'].items() if place <= 3}
         raw = set(map(tuple, drop_simple_cycles(case['pairs'])))
         before = nx.DiGraph()
         before.add_nodes_from(names.values())
@@ -91,13 +91,22 @@ def main():
                    ratings=case['ratings'])
         else:
             isolated = set(case['details']['isolated'])
-            after = TournamentGraphConstructor(names, case['pairs'], fixed_places=podium).make_graph().reverse()
+            after = nx.DiGraph()
+            after.add_nodes_from(names.values())
+            after.add_weighted_edges_from(case['details']['edges'])
+            after = after.reverse()
             assert set(nx.isolates(after)) == isolated
             incident = {(a, b) for a, b in before.edges() if a in isolated or b in isolated}
             render(images/(path.stem+'-before'), before, podium, isolated, incident,
                    'До отбора цепочек', 'Связи выделенных участников ещё существуют • проигравший → победитель', raw)
             render(images/(path.stem+'-after'), after, podium, isolated, set(),
                    'После отбора цепочек L и L−1', 'Выделенные участники потеряли все связи • проигравший → победитель', raw)
+            restored_graph = TournamentGraphConstructor(names, case['pairs'], fixed_places=podium).make_graph().reverse()
+            assert not list(nx.isolates(restored_graph))
+            assert set(restored_graph.edges()) == set(before.edges())
+            render(images/(path.stem+'-restored'), restored_graph, podium, isolated, incident,
+                   'Исправлено: сохранены все ветви',
+                   'Зелёным — восстановленные связи • проигравший → победитель', raw, restored=True)
         print('Rendered', path.stem)
 
 
