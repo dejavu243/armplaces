@@ -17,9 +17,30 @@ from armplaces.read_tournament import drop_simple_cycles
 class RankingUndefined(ValueError):
     """The heuristic cannot provide a complete, unambiguous graph ranking."""
 
+    def __init__(self, message: str, reason_code: str = 'graph_failure'):
+        super().__init__(message)
+        self.reason_code = reason_code
+
+
+def build_projection(participants, pairs, fixed_places) -> nx.DiGraph:
+    """Return the podium-anchored loser-to-winner projection, even if cyclic."""
+    graph = nx.DiGraph()
+    graph.add_nodes_from(participants)
+    graph.add_edges_from(drop_simple_cycles(pairs))
+    for loser, winner in list(graph.edges()):
+        if loser in fixed_places and (winner not in fixed_places or
+                fixed_places[loser] < fixed_places[winner]):
+            graph.remove_edge(loser, winner)
+    podium = sorted(fixed_places, key=fixed_places.get)
+    if podium:
+        graph.add_edges_from((lower, higher) for higher, lower in zip(podium, podium[1:]))
+        graph.add_edges_from((name, podium[-1]) for name in participants if name not in fixed_places)
+    return graph
+
 
 class TournamentGraphConstructor:
-    def __init__(self, names: dict, pairs: list, fixed_places: dict | None = None):
+    def __init__(self, names: dict, pairs: list, fixed_places: dict | None = None,
+                 *, allow_cycles: bool = False):
         self.names = dict(names)
         self.pairs = [tuple(pair) for pair in pairs]
         participants = list(self.names.values())
@@ -35,20 +56,10 @@ class TournamentGraphConstructor:
                 or sorted(self.fixed_places.values()) != list(range(1, len(self.fixed_places)+1))
                 or len(self.fixed_places) > 3):
             raise ValueError('Fixed places must be a unique podium prefix')
-        self.up = nx.DiGraph()
-        self.up.add_nodes_from(participants)
-        self.up.add_edges_from(drop_simple_cycles(self.pairs))
-        # Only the graph projection is corrected; the chronological journal is untouched.
-        for loser, winner in list(self.up.edges()):
-            if loser in self.fixed_places and (winner not in self.fixed_places or
-                    self.fixed_places[loser] < self.fixed_places[winner]):
-                self.up.remove_edge(loser, winner)
-        podium = sorted(self.fixed_places, key=self.fixed_places.get)
-        if podium:
-            self.up.add_edges_from((lower, higher) for higher, lower in zip(podium, podium[1:]))
-            self.up.add_edges_from((name, podium[-1]) for name in participants if name not in self.fixed_places)
-        if not nx.is_directed_acyclic_graph(self.up):
-            raise RankingUndefined("Cycle remains after resolving head-to-head majorities")
+        self.up = build_projection(participants, self.pairs, self.fixed_places)
+        if not allow_cycles and not nx.is_directed_acyclic_graph(self.up):
+            raise RankingUndefined("Cycle remains after resolving head-to-head majorities",
+                                   reason_code='remaining_cycle')
 
     def find_winner(self, sportsman: str) -> list:
         return list(self.up.successors(sportsman))

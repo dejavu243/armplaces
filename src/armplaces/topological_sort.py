@@ -116,20 +116,34 @@ def rank_tournament(names: dict, pairs: list, ratings: dict | None = None) -> di
         if (set(ratings) != set(names.values())
                 or any(not isfinite(r) or r <= 0 for r in ratings.values())):
             raise ValueError('Expected a finite positive initial rating for every participant')
-    podium = infer_podium(names, pairs)
-    fixed_places = podium['places']
-    try:
-        graph = TournamentGraphConstructor(names, pairs, fixed_places=fixed_places).make_graph()
-        tournament = get_places(get_tournament_dict(graph), graph, fixed_places=fixed_places)
-    except RankingUndefined as exc:
+    result, failure, _ = standard_graph_pass(names, pairs)
+    if failure is not None:
+        fixed_places = infer_podium(names, pairs)['places']
         if ratings is not None and fixed_places:
             return {'status': 'ok', 'reason': '',
-                    'method': 'opponent_ratings', 'graph_reason': str(exc),
+                    'method': 'opponent_ratings', 'graph_reason': str(failure),
                     'places': rank_by_opponents(names, pairs, ratings, fixed_places)}
-        return {'status': 'partial' if fixed_places else 'undefined',
-                'reason': str(exc), 'places': dict(fixed_places)}
-    return {'status': 'ok', 'reason': '',
-            'places': {name: values['place'] for name, values in tournament.items()}}
+    return result
+
+
+def standard_graph_pass(names: dict, pairs: list):
+    """Run the graph heuristic once, returning (result, structured failure, projection)."""
+    fixed_places = infer_podium(names, pairs)['places']
+    constructor = TournamentGraphConstructor(names, pairs, fixed_places=fixed_places,
+                                               allow_cycles=True)
+    projection = constructor.up.copy()
+    try:
+        if not nx.is_directed_acyclic_graph(projection):
+            raise RankingUndefined('Cycle remains after resolving head-to-head majorities',
+                                   reason_code='remaining_cycle')
+        graph = constructor.make_graph()
+        tournament = get_places(get_tournament_dict(graph), graph, fixed_places=fixed_places)
+    except RankingUndefined as exc:
+        return ({'status': 'partial' if fixed_places else 'undefined',
+                 'reason': str(exc), 'places': dict(fixed_places)}, exc, projection)
+    return ({'status': 'ok', 'reason': '',
+             'places': {name: values['place'] for name, values in tournament.items()}},
+            None, projection)
 
 
 def calc_and_save_places(names: dict, pairs: list, filename: Path = Path('places.txt')):
