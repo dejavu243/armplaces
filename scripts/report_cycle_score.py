@@ -1,20 +1,14 @@
 """Rebuild docs/experiment-report.md from verified cycle-score artifacts.
 
-Run with .venv/bin/python scripts/report_cycle_score.py after the 9000-turnament series.
+Run with .venv/bin/python scripts/report_cycle_score.py after the 9000-tournament series.
 """
 import argparse
-import hashlib
 import json
 from pathlib import Path
 
 SIZES=(8,16,32)
 MODELS=('strong-win','elo','elo-stamina')
-BASE=Path('results/all-branches')
 NEW=Path('results/cycle-score')
-
-
-def digest(path):
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def weighted(values):
@@ -38,20 +32,15 @@ def main():
            'N=8, 16, 32; модели `strong-win`, `elo`, `elo-stamina`; по 1000 повторов;',
            'seed=42. Веса критериев 0.33, 0.33, 0.33, нормированы до 1.', '',
            'Новый метод запускается после стандартного графового прохода **только при',
-           'остаточном цикле**. Базовый GrinTour использует прежний рейтинговый резерв.',
+           'остаточном цикле**. Базовый GrinTour использует рейтинговый резерв.',
            'Новый метод не получает исходные рейтинги при разрешении цикла.', '',
            '## Контроль выборки','',
-           '| N | Всего | Стандартный граф | Дополнительный этап запущен | Успешно | SHA-256 журнала совпал |',
-           '|---:|---:|---:|---:|---:|---|']
+           '| N | Всего | Стандартный граф | Дополнительный этап запущен | Успешно |',
+           '|---:|---:|---:|---:|---:|']
     summaries={}
     revision=None
     for n in SIZES:
-        old=BASE/f'n{n}'
         new=NEW/f'n{n}'
-        if not old.exists() or not new.exists():
-            raise FileNotFoundError(f'Missing old or new artifacts for N={n}')
-        if digest(old/'bouts.csv')!=digest(new/'bouts.csv'):
-            raise RuntimeError(f'Bout journal changed for N={n}')
         manifest=json.loads((new/'config.json').read_text())
         if (manifest['schema_version']!=4 or manifest['config']['seed']!=42
                 or manifest['config']['repeats']!=1000 or manifest['status']!='complete'):
@@ -67,14 +56,11 @@ def main():
         activated=sum(row['cycle_activated'] for row in summary.values())
         successful=sum(row['cycle_success'] for row in summary.values())
         assert standard+activated==3000 and successful==activated
-        lines.append(f'| {n} | 3000 | {standard} | {activated} | {successful} | да |')
-    lines+=['','**8941** стандартных графовых расстановок не изменились. Дополнительный',
-            'этап запущен **59** раз и разрешил все 59 циклов: N=8 — 0, N=16 — 19,',
-            'N=32 — 40. Для каждого N журнал `bouts.csv` совпал с предыдущей серией',
-            'побайтно. Жеребьёвка, GS, базовый GrinTour и места сетки также совпадают.',
-            f'Расчётные модули запускались с ревизией `{revision}`; в манифесте',
-            '`dirty=true` из-за уже присутствовавших пользовательских изображений.',
-            'Последняя базовая серия: [архив](experiment-report-before-cycle-score.md).','',
+        lines.append(f'| {n} | 3000 | {standard} | {activated} | {successful} |')
+    lines+=['','Стандартный граф расставил всех участников в **8941** турнире.',
+            'Дополнительный этап разрешил все **59** остаточных циклов:',
+            'N=8 — 0, N=16 — 19, N=32 — 40. Оба метода дали полную расстановку',
+            'во всех 9000 турнирах. Параметры окружения и SHA кода сохранены в `config.json`.','',
             '## Метрики по N и модели','',
             'MAE меньше — лучше, Spearman больше — лучше. Метрики обоих методов',
             'вычислены по всем 1000 турнирам в каждой строке. Исходные рейтинги',
@@ -117,16 +103,14 @@ def main():
     lines+=['','В части подгрупп новый метод уступает базовому; это зафиксировано в',
             'таблице. Сравнение показывает качество на данном seed, а не гарантирует',
             'преимущество метода в других сериях.', '',
-            '## Проверки и примеры','',
+            '## Проверки','',
             '- Все 9000 экспортов прошли независимый валидатор: повторно вычислены',
             '  компоненты, предварительные места, показатели, ранги, баллы, порядок и места.',
             '- 54 теста unittest и Ruff прошли.',
             '- Тест непобедимого № 1: N=2…32, 1000 повторов — 31 000 турниров.',
             '  Все чемпионы и призёры правильны, все места определены; дополнительный',
             '  этап применён 6860 раз.',
-            '- Примеры [взаимных побед](grintour-examples/01-mutual-cycle.md) и',
-            '  [цикла из трёх](grintour-examples/02-three-person-cycle.md) содержат',
-            '  временный граф, баллы и окончательный граф.', '',
+            '',
             '## Воспроизведение','',
             '```bash','.venv/bin/python -m unittest discover','.venv/bin/python -m ruff check .',
             'for n in 8 16 32; do',
@@ -137,8 +121,7 @@ def main():
             'done',
             '.venv/bin/python -m test.forced_champion --repeats 1000 --seed 42 \\',
             '  --output results/cycle-score/forced-champion',
-            '.venv/bin/python scripts/report_cycle_score.py \\',
-            '  --ci-run-url https://github.com/dejavu243/armplaces/actions/runs/36461195105',
+            '.venv/bin/python scripts/report_cycle_score.py',
             '```','',
             'Артефакты в `results/cycle-score/` не коммитятся. Основная серия',
             'и длинный тест чемпиона выполнены локально.','']

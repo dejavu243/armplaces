@@ -19,7 +19,7 @@ class AllBranchesTests(unittest.TestCase):
         self.assertTrue(all(data['weight'] > 0 for _,_,data in graph.edges(data=True)))
 
     def test_documented_isolates_rank_without_initial_ratings(self):
-        root = Path(__file__).resolve().parents[1]/'docs/grintour-examples'
+        root = Path(__file__).resolve().parents[1]/'test/fixtures'
         for name in ('03-isolated-participant', '04-isolated-group'):
             case = json.loads((root/(name+'.json')).read_text())
             names = dict(enumerate(case['draw']))

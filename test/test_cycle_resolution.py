@@ -20,7 +20,7 @@ def case(path):
 
 class CycleResolutionTests(unittest.TestCase):
     def test_only_residual_cycles_invoke_scoring(self):
-        complete = case('docs/grintour-examples/03-isolated-participant.json')
+        complete = case('test/fixtures/03-isolated-participant.json')
         names = dict(enumerate(complete['draw']))
         with patch('armplaces.cycle_resolution.score_component', side_effect=AssertionError('called')):
             result = rank_tournament_cycle_score(names, complete['pairs'])
@@ -31,7 +31,7 @@ class CycleResolutionTests(unittest.TestCase):
         self.assertEqual(disconnected['status'], 'undefined')
         self.assertFalse(disconnected['diagnostics']['activated'])
         self.assertNotEqual(disconnected['diagnostics']['standard']['reason_code'], 'remaining_cycle')
-        cyclic = case('docs/grintour-examples/01-mutual-cycle.json')
+        cyclic = case('test/fixtures/01-mutual-cycle.json')
         names = dict(enumerate(cyclic['draw']))
         import armplaces.cycle_resolution as module
         with patch.object(module, 'score_component', wraps=module.score_component) as score:
@@ -72,8 +72,7 @@ class CycleResolutionTests(unittest.TestCase):
 
     def test_examples_preserve_podium_external_edges_and_input(self):
         for path in ('01-mutual-cycle','02-three-person-cycle','four_person_cycle'):
-            item = case(('test/fixtures/' if path=='four_person_cycle' else
-                         'docs/grintour-examples/')+path+'.json')
+            item = case('test/fixtures/'+path+'.json')
             draw=item['draw'] if path=='four_person_cycle' else item['draw']
             names={i:str(i) for i in draw} if path=='four_person_cycle' else dict(enumerate(draw))
             pairs=[tuple(x) for x in item['pairs']]
