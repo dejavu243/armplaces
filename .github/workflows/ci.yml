@@ -62,7 +62,8 @@ jobs:
         run: |
           mkdir -p results/n${{ matrix.participants }}
           .venv/bin/python -m simulation \
-            --strong-win --elo --elo-stamina --grin-tour \
+            --strong-win --elo --elo-stamina --grin-tour --grin-cycle-score \
+            --cycle-weights 0.33 0.33 0.33 \
             --participants ${{ matrix.participants }} --repeats 1000 --seed 42 \
             --output results/n${{ matrix.participants }} \
             2>&1 | tee results/n${{ matrix.participants }}/console.log
