@@ -82,8 +82,13 @@ for n in 8 16 32; do
 done
 .venv/bin/python -m test.forced_champion --repeats 1000 --seed 42 \
   --output results/cycle-score/forced-champion
-.venv/bin/python scripts/report_cycle_score.py
+.venv/bin/python scripts/report_cycle_score.py \
+  --ci-run-url https://github.com/dejavu243/armplaces/actions/runs/36461195105
 ```
 
-Артефакты в `results/cycle-score/` не коммитятся. Результаты получены
-локально; удалённый GitHub Actions в рамках этой проверки не запускался.
+Артефакты в `results/cycle-score/` не коммитятся. Основная серия
+и длинный тест чемпиона выполнены локально.
+
+Отдельный [запуск GitHub Actions](https://github.com/dejavu243/armplaces/actions/runs/36461195105) завершился успешно:
+проверки Python 3.11–3.13 и эксперименты N=16, N=32; оба
+артефакта `simulation-n16-seed42` и `simulation-n32-seed42` загружены.

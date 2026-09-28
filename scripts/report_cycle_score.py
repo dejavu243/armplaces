@@ -2,6 +2,7 @@
 
 Run with .venv/bin/python scripts/report_cycle_score.py after the 9000-turnament series.
 """
+import argparse
 import hashlib
 import json
 from pathlib import Path
@@ -30,6 +31,9 @@ def number(value):
 
 
 def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--ci-run-url', help='URL of a separately verified successful CI run')
+    args=parser.parse_args()
     lines=['# Контрольная серия: дополнительное разрешение остаточных циклов','',
            'N=8, 16, 32; модели `strong-win`, `elo`, `elo-stamina`; по 1000 повторов;',
            'seed=42. Веса критериев 0.33, 0.33, 0.33, нормированы до 1.', '',
@@ -133,9 +137,15 @@ def main():
             'done',
             '.venv/bin/python -m test.forced_champion --repeats 1000 --seed 42 \\',
             '  --output results/cycle-score/forced-champion',
-            '.venv/bin/python scripts/report_cycle_score.py','```','',
-            'Артефакты в `results/cycle-score/` не коммитятся. Результаты получены',
-            'локально; удалённый GitHub Actions в рамках этой проверки не запускался.','']
+            '.venv/bin/python scripts/report_cycle_score.py \\',
+            '  --ci-run-url https://github.com/dejavu243/armplaces/actions/runs/36461195105',
+            '```','',
+            'Артефакты в `results/cycle-score/` не коммитятся. Основная серия',
+            'и длинный тест чемпиона выполнены локально.','']
+    if args.ci_run_url:
+        lines += [f'Отдельный [запуск GitHub Actions]({args.ci_run_url}) завершился успешно:',
+                  'проверки Python 3.11–3.13 и эксперименты N=16, N=32; оба',
+                  'артефакта `simulation-n16-seed42` и `simulation-n32-seed42` загружены.', '']
     forced=json.loads((NEW/'forced-champion/summary.json').read_text())
     assert forced['totals']['tournaments']==31000
     assert forced['totals']['cycle_complete']==31000
