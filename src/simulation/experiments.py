@@ -20,6 +20,7 @@ from pathlib import Path
 import numpy as np
 
 from .core import MODELS, Config, generate_field, simulate
+from armplaces.cycle_resolution import DEFAULT_WEIGHTS, normalize_weights
 
 
 def average_ranks(values, descending=False):
@@ -76,18 +77,30 @@ def report_markdown(config, summary):
     lines.extend(['', 'MAE и Spearman Гринёва рассчитаны только по полным расстановкам; partial сохраняет призёров.',
                   'Число определённых корреляций указано в summary.json; для N=1 корреляция отсутствует.',
                   'Рейтинг внутри турнира фиксирован, обновление выполняется после окончания.', ''])
+    lines.extend(['| Модель | Граф завершился без цикла | Дополнительный этап запущен | Дополнительный этап завершён | MAE нового метода | Spearman нового метода |',
+                  '|---|---:|---:|---:|---:|---:|'])
+    for model, item in summary.items():
+        cycle = item['grin_cycle_score']
+        lines.append(f"| {model} | {item['cycle_standard_success']} | {item['cycle_activated']} | "
+                     f"{item['cycle_success']} | {fmt(cycle['mae'])} | {fmt(cycle['spearman'])} |")
+    lines.append('')
     return '\n'.join(lines)
 
 
-def run_experiments(config: Config, models, grin_tour: bool, output: Path | str) -> dict:
+def run_experiments(config: Config, models, grin_tour: bool, output: Path | str, *,
+                    grin_cycle_score: bool = False, cycle_weights=DEFAULT_WEIGHTS) -> dict:
     config.validate()
+    normalized_weights = normalize_weights(cycle_weights)
     if not models or any(model not in MODELS for model in models):
         raise ValueError('Select at least one known experiment')
     models = [model for model in MODELS if model in models]
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
-    manifest = {'schema_version': 3, 'config': asdict(config), 'models': models,
-                'grin_tour': grin_tour, 'environment': environment(), 'status': 'running'}
+    manifest = {'schema_version': 4, 'config': asdict(config), 'models': models,
+                'grin_tour': grin_tour, 'grin_cycle_score': grin_cycle_score,
+                'cycle_weights': list(cycle_weights),
+                'normalized_cycle_weights': list(normalized_weights),
+                'environment': environment(), 'status': 'running'}
     write_json(output/'config.json', manifest)
     logger = logging.getLogger('armplaces.experiments')
     handler = logging.FileHandler(output/'run.log', mode='w', encoding='utf-8')
@@ -95,9 +108,14 @@ def run_experiments(config: Config, models, grin_tour: bool, output: Path | str)
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
     accumulators = {model: {'completed': 0, 'strongest_wins': 0, 'undefined': Counter(), 'partial': Counter(),
-                           'bracket': [], 'grin_tour': []} for model in models}
+                           'bracket': [], 'grin_tour': [], 'grin_cycle_score': [],
+                           'cycle_activated': 0, 'cycle_success': 0,
+                           'cycle_standard_success': 0, 'cycle_failures': Counter(),
+                           'cycle_subset_grin_tour': [], 'cycle_subset_grin_cycle_score': []}
+                    for model in models}
     participants_fields = ['repeat', 'model', 'participant', 'draw_position', 'rating', 'new_rating',
-                           'wins', 'losses', 'played', 'place', 'grin_place', 'grin_status', 'grin_reason']
+                           'wins', 'losses', 'played', 'place', 'grin_place', 'grin_status', 'grin_reason',
+                           'cycle_place', 'cycle_status', 'cycle_reason']
     bouts_fields = ['repeat', 'model', 'match', 'stage', 'a', 'b', 'technical', 'winner', 'loser',
                     'p_a', 'p_start_a', 'effective_a', 'effective_b', 'previous_bouts_a', 'previous_bouts_b']
     try:
@@ -112,8 +130,11 @@ def run_experiments(config: Config, models, grin_tour: bool, output: Path | str)
             for repeat in range(config.repeats):
                 ratings, draw = generate_field(config, repeat)
                 for model in models:
-                    result = simulate(config, model, ratings, draw, repeat=repeat, grin_tour=grin_tour)
+                    result = simulate(config, model, ratings, draw, repeat=repeat, grin_tour=grin_tour,
+                                      grin_cycle_score=grin_cycle_score,
+                                      cycle_weights=normalized_weights)
                     ranking = result['grin_tour']
+                    cycle = result['grin_cycle_score']
                     accumulator = accumulators[model]
                     accumulator['completed'] += 1
                     accumulator['strongest_wins'] += ratings[result['champion']] == max(ratings)
@@ -122,6 +143,21 @@ def run_experiments(config: Config, models, grin_tour: bool, output: Path | str)
                         accumulator['grin_tour'].append(rank_metrics(ratings, {int(k):v for k,v in ranking['places'].items()}))
                     elif ranking['status'] in ('undefined', 'partial'):
                         accumulator[ranking['status']][ranking['reason']] += 1
+                    if grin_cycle_score:
+                        diagnostics = cycle['diagnostics']
+                        accumulator['cycle_activated'] += diagnostics['activated']
+                        accumulator['cycle_standard_success'] += not diagnostics['activated'] and cycle['status']=='ok'
+                        if cycle['status'] == 'ok':
+                            measurement = rank_metrics(ratings, {int(k):v for k,v in cycle['places'].items()})
+                            accumulator['grin_cycle_score'].append(measurement)
+                            if diagnostics['activated']:
+                                accumulator['cycle_success'] += 1
+                                accumulator['cycle_subset_grin_cycle_score'].append(measurement)
+                        elif diagnostics['activated']:
+                            accumulator['cycle_failures'][cycle['reason']] += 1
+                        if diagnostics['activated'] and ranking['status']=='ok':
+                            accumulator['cycle_subset_grin_tour'].append(
+                                rank_metrics(ratings, {int(k):v for k,v in ranking['places'].items()}))
                     draw_positions = {who: i+1 for i, who in enumerate(draw)}
                     for who in range(config.participants):
                         participants_writer.writerow({'repeat': repeat, 'model': model, 'participant': who,
@@ -129,11 +165,14 @@ def run_experiments(config: Config, models, grin_tour: bool, output: Path | str)
                             'new_rating': result['new_ratings'][who], 'wins': result['wins'][who],
                             'losses': result['losses'][who], 'played': result['played'][who],
                             'place': result['places'][who], 'grin_place': ranking['places'].get(str(who)),
-                            'grin_status': ranking['status'], 'grin_reason': ranking['reason']})
+                            'grin_status': ranking['status'], 'grin_reason': ranking['reason'],
+                            'cycle_place': cycle['places'].get(str(who)),
+                            'cycle_status': cycle['status'], 'cycle_reason': cycle['reason']})
                     for bout in result['bouts']:
                         bouts_writer.writerow({'repeat': repeat, 'model': model, **bout})
                     tournaments.write(json.dumps({key: result[key] for key in
-                        ('repeat', 'model', 'draw', 'champion', 'reset', 'sequence', 'grin_tour', 'eliminated_slots', 'bracket')},
+                        ('repeat', 'model', 'draw', 'champion', 'reset', 'sequence', 'grin_tour',
+                         'grin_cycle_score', 'eliminated_slots', 'bracket')},
                         ensure_ascii=False, allow_nan=False)+'\n')
                 if (repeat+1) % 100 == 0 or repeat+1 == config.repeats:
                     logger.info('Completed %d/%d repetitions for %s', repeat+1, config.repeats, ', '.join(models))
@@ -144,8 +183,13 @@ def run_experiments(config: Config, models, grin_tour: bool, output: Path | str)
                     'grin_undefined_rate': sum(accumulator['undefined'].values())/config.repeats if grin_tour else None,
                     'grin_undefined_reasons': dict(accumulator['undefined']),
                     'grin_partial_rate': sum(accumulator['partial'].values())/config.repeats if grin_tour else None,
-                    'grin_partial_reasons': dict(accumulator['partial'])}
-            for method in ('bracket', 'grin_tour'):
+                    'grin_partial_reasons': dict(accumulator['partial']),
+                    'cycle_standard_success': accumulator['cycle_standard_success'],
+                    'cycle_activated': accumulator['cycle_activated'],
+                    'cycle_success': accumulator['cycle_success'],
+                    'cycle_failures': dict(accumulator['cycle_failures'])}
+            for method in ('bracket', 'grin_tour', 'grin_cycle_score',
+                           'cycle_subset_grin_tour', 'cycle_subset_grin_cycle_score'):
                 samples = accumulator[method]
                 correlations = [sample['spearman'] for sample in samples if sample['spearman'] is not None]
                 item[method] = {'samples': len(samples),

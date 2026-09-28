@@ -13,6 +13,8 @@ from functools import lru_cache
 import numpy as np
 
 from armplaces.topological_sort import rank_tournament
+from armplaces.cycle_resolution import (DEFAULT_WEIGHTS, normalize_weights,
+                                        rank_tournament_cycle_score)
 from armplaces.tables.DE_OLD_Winner_fix import DE_OLD_winner_fix
 from armplaces.tables.DE_OLD_Loser_fix import DE_OLD_loser_fix
 
@@ -131,8 +133,10 @@ def generate_field(config: Config, repeat: int):
 
 
 def simulate(config: Config, model: str, ratings: list[float], draw: list[int],
-             repeat: int = 0, grin_tour: bool = False, rng=None) -> dict:
+             repeat: int = 0, grin_tour: bool = False, rng=None, *,
+             grin_cycle_score: bool = False, cycle_weights=DEFAULT_WEIGHTS) -> dict:
     config.validate()
+    normalized_weights = normalize_weights(cycle_weights)
     n = config.participants
     if model not in MODELS:
         raise ValueError(f'Unknown model: {model}')
@@ -217,10 +221,14 @@ def simulate(config: Config, model: str, ratings: list[float], draw: list[int],
     ranking = (rank_tournament({i: str(i) for i in draw}, real_pairs,
                                ratings={str(i): rating for i, rating in enumerate(ratings)}) if grin_tour else
                {'status': 'disabled', 'reason': '', 'places': {}})
+    cycle_ranking = (rank_tournament_cycle_score({i: str(i) for i in draw}, real_pairs,
+                                                  weights=normalized_weights)
+                     if grin_cycle_score else {'status': 'disabled', 'reason': '', 'places': {}})
     result = {'model': model, 'repeat': repeat, 'ratings': list(ratings), 'draw': list(draw),
               'new_ratings': [r+d for r, d in zip(ratings, deltas)],
               'wins': wins, 'losses': losses, 'played': played, 'champion': champion,
-              'places': places, 'grin_tour': ranking, 'bouts': bouts, 'sequence': sequence,
+              'places': places, 'grin_tour': ranking, 'grin_cycle_score': cycle_ranking,
+              'bouts': bouts, 'sequence': sequence,
               'reset': reset_needed, 'eliminated_slots': eliminated_slots, 'bracket': 'DE_OLD_fix'}
     validate_result(result)
     return result
@@ -288,6 +296,23 @@ def validate_result(result: dict):
         expected_podium = {str(i): place for i, place in result['places'].items() if place <= 3}
         if any(ranking['places'][name] != place for name, place in expected_podium.items()):
             raise RuntimeError('GrinTour changed a decisive-bout podium place')
+    cycle_ranking = result['grin_cycle_score']
+    if cycle_ranking['status'] == 'ok':
+        if (set(cycle_ranking['places']) != set(map(str, range(n)))
+                or sorted(cycle_ranking['places'].values()) != list(range(1, n+1))):
+            raise RuntimeError('Incomplete cycle-score ranking')
+        expected_podium = {str(i): place for i, place in result['places'].items() if place <= 3}
+        if any(cycle_ranking['places'][name] != place for name, place in expected_podium.items()):
+            raise RuntimeError('Cycle-score ranking changed the decisive-bout podium')
+    elif cycle_ranking['status'] == 'partial':
+        expected_podium = {str(i): place for i, place in result['places'].items() if place <= 3}
+        if cycle_ranking['places'] != expected_podium or not cycle_ranking['reason']:
+            raise RuntimeError('Invalid partial cycle-score result')
+    elif cycle_ranking['status'] == 'undefined':
+        if cycle_ranking['places'] or not cycle_ranking['reason']:
+            raise RuntimeError('Invalid undefined cycle-score result')
+    elif cycle_ranking['status'] != 'disabled' or cycle_ranking['places']:
+        raise RuntimeError('Invalid cycle-score status')
 
 
 def validate_sequence(result: dict):
