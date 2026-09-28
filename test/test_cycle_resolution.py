@@ -8,7 +8,7 @@ import networkx as nx
 
 from armplaces.cycle_resolution import (normalize_weights, ranked_scores,
                                         rank_tournament_cycle_score, score_component)
-from armplaces.grinev_algorithm import TournamentGraphConstructor
+from armplaces.grinev_algorithm import RankingUndefined, TournamentGraphConstructor
 from armplaces.topological_sort import rank_tournament
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -97,3 +97,22 @@ class CycleResolutionTests(unittest.TestCase):
             for a,b in original_graph.edges():
                 if not any(a in c['members'] and b in c['members'] for c in components):
                     self.assertTrue(rewritten.has_edge(a,b))
+
+    def test_two_components_share_one_preliminary_graph(self):
+        names=dict(enumerate('ABCDEFG'))
+        pairs=[('D','E'),('E','D'),('F','G'),('G','F'),
+               ('D','C'),('E','C'),('F','C'),('G','C')]
+        podium={'A':1,'B':2,'C':3}
+        graph=TournamentGraphConstructor(names,pairs,fixed_places=podium,allow_cycles=True).up
+        reason='Cycle remains after resolving head-to-head majorities'
+        failure=RankingUndefined(reason,reason_code='remaining_cycle')
+        standard={'status':'partial','reason':reason,'places':podium}
+        with patch('armplaces.cycle_resolution.standard_graph_pass',
+                   return_value=(standard,failure,graph)):
+            result=rank_tournament_cycle_score(names,pairs)
+        self.assertEqual(result['status'],'ok')
+        self.assertEqual([component['members'] for component in result['diagnostics']['components']],
+                         [['D','E'],['F','G']])
+        preliminary=result['diagnostics']['preliminary_places']
+        self.assertEqual(set(preliminary),set(names.values()))
+        self.assertEqual(sorted(result['places'].values()),list(range(1,8)))
