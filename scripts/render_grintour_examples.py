@@ -13,6 +13,7 @@ import networkx as nx
 from armplaces.grinev_algorithm import TournamentGraphConstructor
 from armplaces.read_tournament import drop_simple_cycles
 from armplaces.topological_sort import rank_tournament
+from armplaces.cycle_resolution import rank_tournament_cycle_score
 
 ROOT = Path(__file__).resolve().parents[1] / 'docs' / 'grintour-examples'
 
@@ -89,6 +90,25 @@ def main():
             render(images/(path.stem+'-detail'), detail, {}, set(cycle), edges,
                    'Почему расстановка остановилась', 'Замкнутый цикл • проигравший → победитель', raw,
                    ratings=case['ratings'])
+            scored = rank_tournament_cycle_score(names, case['pairs'])
+            assert scored['status'] == 'ok' and scored['diagnostics']['activated']
+            diagnostics = scored['diagnostics']
+            preliminary = before.copy()
+            for component in diagnostics['components']:
+                members = set(component['members'])
+                preliminary.remove_edges_from((a, b) for a, b in list(preliminary.edges())
+                                              if a in members and b in members)
+            render(images/(path.stem+'-preliminary'), preliminary, podium, set(cycle), set(),
+                   'Временный граф без внутренних связей цикла',
+                   'По этому графу рассчитываются предварительные места', raw)
+            resolved = before.copy()
+            resolved.remove_edges_from(map(tuple, diagnostics['removed_edges']))
+            resolved.add_edges_from(map(tuple, diagnostics['added_edges']))
+            render(images/(path.stem+'-resolved'), resolved, podium, set(cycle),
+                   set(map(tuple, diagnostics['added_edges'])),
+                   'Дополнительное разрешение цикла',
+                   'Зелёным — добавленные связи порядка • проигравший → победитель',
+                   raw, restored=True)
         else:
             isolated = set(case['details']['isolated'])
             after = nx.DiGraph()

@@ -53,16 +53,27 @@ class CycleIntegrationTests(unittest.TestCase):
             triggered=next(record for record in records if
                            record['grin_cycle_score']['diagnostics']['activated'])
             index=records.index(triggered)
-            for change in ('score','activation','order'):
+            for change in ('score','criterion','preliminary','activation','order','edge','place'):
                 changed=json.loads(json.dumps(records))
                 diag=changed[index]['grin_cycle_score']['diagnostics']
                 if change=='score':
                     member=diag['components'][0]['members'][0]
                     diag['components'][0]['scores'][member]['total']+=0.1
+                elif change=='criterion':
+                    member=diag['components'][0]['members'][0]
+                    diag['components'][0]['scores'][member]['values']['loss_place']+=1
+                elif change=='preliminary':
+                    member=diag['components'][0]['members'][0]
+                    diag['preliminary_places'][member]+=1
                 elif change=='activation':
                     diag['activated']=False
-                else:
+                elif change=='order':
                     diag['components'][0]['order'].reverse()
+                elif change=='edge':
+                    diag['added_edges'].append(['0','1'])
+                else:
+                    member=diag['components'][0]['members'][0]
+                    changed[index]['grin_cycle_score']['places'][member]=99
                 source.write_text(''.join(json.dumps(record)+'\n' for record in changed))
                 with self.assertRaises((ValueError,RuntimeError)):
                     verify_artifacts(path)
