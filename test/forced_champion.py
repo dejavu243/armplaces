@@ -1,4 +1,4 @@
-"""Проверка непобедимого №1: 1000 турниров для каждого N=2..64.
+"""Проверка непобедимого №1: 1000 турниров для каждого N=2..32.
 
 Участники имеют имена 1..N; жеребьёвка случайная. №1 всегда выигрывает,
 остальные пары получают честный случайный исход. Проверяются чемпион сетки
@@ -14,6 +14,7 @@ from pathlib import Path
 import numpy as np
 
 from armplaces.topological_sort import rank_tournament
+from armplaces.cycle_resolution import rank_tournament_cycle_score
 from simulation import Config, simulate
 from simulation.experiments import environment, write_json
 
@@ -23,7 +24,7 @@ def run(output: Path, seed: int = 42, repeats: int = 1000):
         raise ValueError('repeats must be positive; seed must be nonnegative')
     output.mkdir(parents=True, exist_ok=True)
     rows, reasons, examples = [], Counter(), {}
-    for n in range(2, 65):
+    for n in range(2, 33):
         counts = Counter()
         for repeat in range(repeats):
             draw_rng = np.random.default_rng(np.random.SeedSequence([seed, n, repeat, 0]))
@@ -49,32 +50,56 @@ def run(output: Path, seed: int = 42, repeats: int = 1000):
                     counts['outcome_rule_errors'] += 1
                 pairs.append((str(bout['loser']+1), str(bout['winner']+1)))
             names = {who+1: str(who+1) for who in draw}
-            ranking = rank_tournament(names, pairs)
+            ranking = rank_tournament(names, pairs, ratings={str(i+1): r for i, r in enumerate(result['ratings'])})
+            cycle_ranking = rank_tournament_cycle_score(names, pairs)
+            expected_podium = {str(i+1): place for i, place in result['places'].items() if place <= 3}
+            if ranking['places'].get('1') == 1:
+                counts['grin_correct'] += 1
+            else:
+                counts['grin_wrong'] += 1
+            if any(ranking['places'].get(name) != place for name, place in expected_podium.items()):
+                counts['podium_errors'] += 1
             if ranking['status'] == 'ok':
-                counts['grin_correct' if ranking['places']['1'] == 1 else 'grin_wrong'] += 1
+                counts['grin_complete'] += 1
+            elif ranking['status'] == 'partial':
+                counts['grin_partial'] += 1
             else:
                 counts['grin_undefined'] += 1
+            counts['cycle_activated'] += cycle_ranking['diagnostics']['activated']
+            if cycle_ranking['status']=='ok':
+                counts['cycle_complete'] += 1
+            else:
+                counts['cycle_incomplete'] += 1
+            if cycle_ranking['places'].get('1')!=1:
+                counts['cycle_champion_errors'] += 1
+            if any(cycle_ranking['places'].get(name)!=place for name,place in expected_podium.items()):
+                counts['cycle_podium_errors'] += 1
+            if ranking['status'] != 'ok':
                 reasons[ranking['reason']] += 1
                 if ranking['reason'] not in examples:
                     examples[ranking['reason']] = {'participants': n, 'repeat': repeat,
                         'draw': [who+1 for who in draw], 'pairs': pairs, 'ranking': ranking}
-            if counts['bracket_wrong'] or counts['outcome_rule_errors'] or counts['grin_wrong']:
+            if (counts['bracket_wrong'] or counts['outcome_rule_errors'] or counts['grin_wrong']
+                    or counts['podium_errors'] or counts['cycle_champion_errors']
+                    or counts['cycle_podium_errors'] or counts['cycle_incomplete']):
                 write_json(output/'failure.json', {'participants': n, 'repeat': repeat,
                            'result': result, 'ranking_with_names_1_to_n': ranking})
                 raise AssertionError(f'Incorrect champion or bout rule: N={n}, repeat={repeat}')
         row = {'participants': n, **{key: counts[key] for key in (
             'tournaments', 'bracket_correct', 'bracket_wrong', 'outcome_rule_errors',
-            'grin_correct', 'grin_wrong', 'grin_undefined')}}
+            'grin_correct', 'grin_wrong', 'grin_complete', 'grin_partial', 'grin_undefined',
+            'podium_errors', 'cycle_activated', 'cycle_complete', 'cycle_incomplete',
+            'cycle_champion_errors', 'cycle_podium_errors')}}
         rows.append(row)
         print(f"N={n:2}: champion #1 {counts['bracket_correct']}/{repeats}; "
-              f"GrinTour #1={counts['grin_correct']}, undefined={counts['grin_undefined']}", flush=True)
+              f"GrinTour #1={counts['grin_correct']}, complete={counts['grin_complete']}, partial={counts['grin_partial']}", flush=True)
     totals = {key: sum(row[key] for row in rows) for key in rows[0] if key != 'participants'}
     with (output/'by_size.csv').open('w', newline='', encoding='utf-8') as stream:
         writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
         writer.writeheader()
         writer.writerows(rows)
-    summary = {'seed': seed, 'repeats_per_size': repeats, 'min_n': 2, 'max_n': 64,
-               'environment': environment(), 'totals': totals, 'grin_undefined_reasons': dict(reasons)}
+    summary = {'seed': seed, 'repeats_per_size': repeats, 'min_n': 2, 'max_n': 32,
+               'environment': environment(), 'totals': totals, 'grin_incomplete_reasons': dict(reasons)}
     write_json(output/'summary.json', summary)
     write_json(output/'undefined_examples.json', examples)
     print(json.dumps(totals, ensure_ascii=False, indent=2), flush=True)

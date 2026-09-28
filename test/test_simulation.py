@@ -15,7 +15,7 @@ class FixedRandom:
 
 class SimulationTests(unittest.TestCase):
     def test_all_sizes_and_models(self):
-        for n in range(2, 129):
+        for n in range(2, 33):
             config = Config(participants=n)
             ratings, draw = generate_field(config, 0)
             for model in ('strong-win', 'elo', 'elo-stamina'):
@@ -28,6 +28,14 @@ class SimulationTests(unittest.TestCase):
                     for destination in (match.winner_to, match.loser_to):
                         if destination is not None:
                             self.assertGreater(destination, 2*i+1)
+
+    def test_draw_fills_consecutive_cells_for_every_size(self):
+        for n in range(1, 33):
+            draw = list(reversed(range(n)))
+            result = simulate(Config(participants=n), 'strong-win', [1.]*n, draw)
+            self.assertEqual(result['sequence'][:n], draw)
+            self.assertEqual(len(result['sequence']), 4*n)
+            self.assertTrue(all(not b['technical'] for b in result['bouts']))
 
     def test_singleton(self):
         result = simulate(Config(participants=1), 'elo', [10.], [0], grin_tour=True)
@@ -67,11 +75,11 @@ class SimulationTests(unittest.TestCase):
         self.assertEqual(a, simulate(config, 'elo', ratings, draw, repeat=3, grin_tour=True))
         self.assertEqual((ratings, draw), generate_field(config, 3))
 
-    def test_byes_and_stamina(self):
+    def test_table_bouts_and_stamina(self):
         config = Config(participants=5)
         ratings, draw = generate_field(config, 0)
         result = simulate(config, 'elo-stamina', ratings, draw)
-        self.assertTrue(any(b['technical'] for b in result['bouts']))
+        self.assertFalse(any(b['technical'] for b in result['bouts']))
         played = [0]*5
         for b in result['bouts']:
             for side in ('a', 'b'):

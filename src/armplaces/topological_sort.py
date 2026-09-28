@@ -3,14 +3,20 @@
 Единственный источник и его неразветвлённое продолжение получают верхние места.
 Остальные вершины удаляются снизу: сравниваются длина пути, уровни победителей,
 число их побед и порядок жеребьёвки. Степени графа не равны реальным счётчикам боёв.
-Возвращается полная расстановка либо статус undefined; входы не изменяются.
+Призёры сначала фиксируются по финалу/суперфиналу/полуфиналу. Возвращается полная
+расстановка либо partial с сохранёнными призёрами, undefined — без известных мест.
+При наличии исходных рейтингов отказ графа разрешается сравнением соперников.
+Входы не изменяются.
 Формулы и порядок сравнений подробно описаны в README.md.
 """
+import json
+from math import isfinite
 from pathlib import Path
 
 import networkx as nx
 
 from armplaces.grinev_algorithm import RankingUndefined, TournamentGraphConstructor
+from armplaces.podium import infer_podium
 
 
 def get_tournament_dict(graph) -> dict:
@@ -30,7 +36,7 @@ def get_target_points_sorted(target_points, keys=None, reverse=None):
         for key, descending in zip(keys, directions)))
 
 
-def get_places(tournament: dict, graph) -> dict:
+def get_places(tournament: dict, graph, fixed_places: dict | None = None) -> dict:
     if not graph or not nx.is_directed_acyclic_graph(graph):
         raise RankingUndefined("Expected a nonempty acyclic graph")
     sources = [node for node in graph if graph.in_degree(node) == 0]
@@ -44,14 +50,19 @@ def get_places(tournament: dict, graph) -> dict:
         for child in graph.successors(node):
             depth[child] = max(depth.get(child, 0), depth[node] + 1)
     assigned = set()
-    node, position = source, 1
-    while True:
-        result[node]["place"] = position
-        assigned.add(node)
-        children = list(graph.successors(node))
-        if len(children) != 1:
-            break
-        node, position = children[0], position + 1
+    if fixed_places:
+        for node, place in fixed_places.items():
+            result[node]['place'] = place
+            assigned.add(node)
+    else:
+        node, position = source, 1
+        while True:
+            result[node]["place"] = position
+            assigned.add(node)
+            children = list(graph.successors(node))
+            if len(children) != 1:
+                break
+            node, position = children[0], position + 1
     remaining = graph.copy()
     next_place = len(graph)
     while len(assigned) < len(graph):
@@ -79,22 +90,68 @@ def get_places(tournament: dict, graph) -> dict:
     return result
 
 
-def rank_tournament(names: dict, pairs: list) -> dict:
-    """Structured status suitable for simulations; malformed input still raises."""
+def rank_by_opponents(names, pairs, ratings, fixed_places):
+    """Resolve graph failure by initial opponent ratings, preserving the podium."""
+    defeated_by = {name: [] for name in names.values()}
+    defeated = {name: [] for name in names.values()}
+    for loser, winner in pairs:
+        if loser:  # Technical passes are not victories over an opponent.
+            defeated_by[loser].append(ratings[winner])
+            defeated[winner].append(ratings[loser])
+    order = {name: index for index, name in enumerate(names.values())}
+
+    def priority(name):
+        return (-min(defeated_by[name], default=float('inf')),
+                -max(defeated[name], default=0), order[name])
+
+    places = dict(fixed_places)
+    remaining = sorted((name for name in names.values() if name not in places), key=priority)
+    places.update({name: place for place, name in enumerate(remaining, len(places)+1)})
+    return places
+
+
+def rank_tournament(names: dict, pairs: list, ratings: dict | None = None) -> dict:
+    """Lock the decisive-bout podium, then rank the rest; preserve it on graph failure."""
+    if ratings is not None:
+        if (set(ratings) != set(names.values())
+                or any(not isfinite(r) or r <= 0 for r in ratings.values())):
+            raise ValueError('Expected a finite positive initial rating for every participant')
+    result, failure, _ = standard_graph_pass(names, pairs)
+    if failure is not None:
+        fixed_places = infer_podium(names, pairs)['places']
+        if ratings is not None and fixed_places:
+            return {'status': 'ok', 'reason': '',
+                    'method': 'opponent_ratings', 'graph_reason': str(failure),
+                    'places': rank_by_opponents(names, pairs, ratings, fixed_places)}
+    return result
+
+
+def standard_graph_pass(names: dict, pairs: list):
+    """Run the graph heuristic once, returning (result, structured failure, projection)."""
+    fixed_places = infer_podium(names, pairs)['places']
+    constructor = TournamentGraphConstructor(names, pairs, fixed_places=fixed_places,
+                                               allow_cycles=True)
+    projection = constructor.up.copy()
     try:
-        graph = TournamentGraphConstructor(names, pairs).make_graph()
-        tournament = get_places(get_tournament_dict(graph), graph)
+        if not nx.is_directed_acyclic_graph(projection):
+            raise RankingUndefined('Cycle remains after resolving head-to-head majorities',
+                                   reason_code='remaining_cycle')
+        graph = constructor.make_graph()
+        tournament = get_places(get_tournament_dict(graph), graph, fixed_places=fixed_places)
     except RankingUndefined as exc:
-        return {"status": "undefined", "reason": str(exc), "places": {}}
-    return {"status": "ok", "reason": "",
-            "places": {name: values["place"] for name, values in tournament.items()}}
+        return ({'status': 'partial' if fixed_places else 'undefined',
+                 'reason': str(exc), 'places': dict(fixed_places)}, exc, projection)
+    return ({'status': 'ok', 'reason': '',
+             'places': {name: values['place'] for name, values in tournament.items()}},
+            None, projection)
 
 
-def calc_and_save_places(names: dict, pairs: list, filename: Path = Path("places.txt")):
+def calc_and_save_places(names: dict, pairs: list, filename: Path = Path('places.txt')):
     ranking = rank_tournament(names, pairs)
-    if ranking["status"] != "ok":
-        raise RankingUndefined(ranking["reason"])
-    Path(filename).write_text("".join(f"{place} {name}\n" for name, place in
-                                     sorted(ranking["places"].items(), key=lambda item: item[1])),
-                              encoding="utf-8")
+    filename = Path(filename)
+    filename.write_text(''.join(f'{place} {name}\n' for name, place in
+                               sorted(ranking['places'].items(), key=lambda item: item[1])),
+                        encoding='utf-8')
+    filename.with_suffix('.json').write_text(json.dumps(ranking, ensure_ascii=False, indent=2)+'\n',
+                                            encoding='utf-8')
     return ranking

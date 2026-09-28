@@ -1,12 +1,12 @@
 """GrinTour: граф мест из пар (проигравший, победитель).
 
-Повторы сворачиваются, встречные победы разрешаются большинством; цикл даёт
-RankingUndefined. От участников без побед выбираются пути длины L и L−1.
-Частоты рёбер этих путей вычисляются динамическим программированием, затем
+Повторы сворачиваются, встречные победы разрешаются большинством. Доказанные
+по решающим боям призовые места устраняют противоречащие им рёбра; оставшийся
+цикл даёт RankingUndefined. Сохраняются все полные пути, включая короткие ветви.
+Частоты рёбер всех путей вычисляются динамическим программированием, затем
 рёбра разворачиваются от победителя к проигравшему. Рейтинги не используются.
 Точный алгоритм, пример и ограничения: README.md, раздел «Полный алгоритм Гринёва».
 """
-from collections import Counter
 from pathlib import Path
 
 import networkx as nx
@@ -17,9 +17,30 @@ from armplaces.read_tournament import drop_simple_cycles
 class RankingUndefined(ValueError):
     """The heuristic cannot provide a complete, unambiguous graph ranking."""
 
+    def __init__(self, message: str, reason_code: str = 'graph_failure'):
+        super().__init__(message)
+        self.reason_code = reason_code
+
+
+def build_projection(participants, pairs, fixed_places) -> nx.DiGraph:
+    """Return the podium-anchored loser-to-winner projection, even if cyclic."""
+    graph = nx.DiGraph()
+    graph.add_nodes_from(participants)
+    graph.add_edges_from(drop_simple_cycles(pairs))
+    for loser, winner in list(graph.edges()):
+        if loser in fixed_places and (winner not in fixed_places or
+                fixed_places[loser] < fixed_places[winner]):
+            graph.remove_edge(loser, winner)
+    podium = sorted(fixed_places, key=fixed_places.get)
+    if podium:
+        graph.add_edges_from((lower, higher) for higher, lower in zip(podium, podium[1:]))
+        graph.add_edges_from((name, podium[-1]) for name in participants if name not in fixed_places)
+    return graph
+
 
 class TournamentGraphConstructor:
-    def __init__(self, names: dict, pairs: list):
+    def __init__(self, names: dict, pairs: list, fixed_places: dict | None = None,
+                 *, allow_cycles: bool = False):
         self.names = dict(names)
         self.pairs = [tuple(pair) for pair in pairs]
         participants = list(self.names.values())
@@ -30,11 +51,15 @@ class TournamentGraphConstructor:
                 raise ValueError(f"Invalid bout: {pair}")
             if pair[0] != "" and pair[0] not in participants:
                 raise ValueError(f"Unknown participant: {pair[0]}")
-        self.up = nx.DiGraph()
-        self.up.add_nodes_from(participants)
-        self.up.add_edges_from(drop_simple_cycles(self.pairs))
-        if not nx.is_directed_acyclic_graph(self.up):
-            raise RankingUndefined("Cycle remains after resolving head-to-head majorities")
+        self.fixed_places = dict(fixed_places or {})
+        if (not set(self.fixed_places) <= set(participants)
+                or sorted(self.fixed_places.values()) != list(range(1, len(self.fixed_places)+1))
+                or len(self.fixed_places) > 3):
+            raise ValueError('Fixed places must be a unique podium prefix')
+        self.up = build_projection(participants, self.pairs, self.fixed_places)
+        if not allow_cycles and not nx.is_directed_acyclic_graph(self.up):
+            raise RankingUndefined("Cycle remains after resolving head-to-head majorities",
+                                   reason_code='remaining_cycle')
 
     def find_winner(self, sportsman: str) -> list:
         return list(self.up.successors(sportsman))
@@ -58,30 +83,21 @@ class TournamentGraphConstructor:
         return {name: self.make_chains(name) for name in self.find_total_losers()}
 
     def make_graph(self) -> nx.DiGraph:
-        # Count lengths of suffix paths once. Length is measured in edges here.
+        # Every edge of a DAG lies on a complete root-to-terminal path.
+        # Count all such paths through an edge without pruning short branches.
         order = list(nx.topological_sort(self.up))
-        suffix = {node: Counter() for node in order}
-        for node in reversed(order):
-            if self.up.out_degree(node) == 0:
-                suffix[node][0] = 1
+        prefix = {node: int(self.up.in_degree(node) == 0) for node in order}
+        suffix = {node: int(self.up.out_degree(node) == 0) for node in order}
+        for node in order:
             for successor in self.up.successors(node):
-                for length, count in suffix[successor].items():
-                    suffix[node][length + 1] += count
-        weights = Counter()
-        for root in self.find_total_losers():
-            longest = max(suffix[root])
-            prefix = {node: Counter() for node in order}
-            prefix[root][0] = 1
-            for node in order:
-                for successor in self.up.successors(node):
-                    for length, count in prefix[node].items():
-                        prefix[successor][length + 1] += count
-                        for target_length in (longest, longest - 1):
-                            weights[successor, node] += count * suffix[successor].get(
-                                target_length - length - 1, 0)
+                prefix[successor] += prefix[node]
+        for node in reversed(order):
+            for successor in self.up.successors(node):
+                suffix[node] += suffix[successor]
         graph = nx.DiGraph()
         graph.add_nodes_from(self.names.values())
-        graph.add_weighted_edges_from((a, b, count) for (a, b), count in weights.items() if count)
+        graph.add_weighted_edges_from((winner, loser, prefix[loser]*suffix[winner])
+                                     for loser, winner in self.up.edges())
         return graph
 
     def save_edgelist(self, filename: Path | str = "edgelist.txt"):
