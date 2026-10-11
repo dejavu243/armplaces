@@ -10,7 +10,7 @@ import csv
 import json
 from collections import Counter
 from itertools import groupby
-from math import isclose
+from math import isclose, isfinite
 from pathlib import Path
 
 import networkx as nx
@@ -19,8 +19,100 @@ from armplaces.cycle_resolution import CRITERIA, normalize_weights
 from armplaces.grinev_algorithm import TournamentGraphConstructor
 from armplaces.topological_sort import (get_places, get_tournament_dict,
                                         standard_graph_pass)
-from .core import Config, MODELS, elo_probability, validate_result
+from .core import Config, MODELS, elo_probability, generate_field, validate_result
 from .experiments import rank_metrics, require_finite
+from .place_statistics import PLACE_FIELDS, RANKING_NAMES
+
+
+def verify_bout_model(result, config, schema):
+    """Recompute strength, probabilities and both fatigue counters from scratch."""
+    fatigue, played = [0.]*len(result['ratings']), [0]*len(result['ratings'])
+    for bout in result['bouts']:
+        sides = [(side, bout[side]) for side in ('a', 'b')]
+        before = list(fatigue)
+        if not bout['technical']:
+            effective = {}
+            for side, who in sides:
+                value = result['ratings'][who]
+                if result['model'] == 'elo-stamina':
+                    value *= (1-config.fatigue_rate)**played[who]
+                elif result['model'] == 'elo-tire':
+                    base = (config.tire_reference-config.tire_floor)/(1-config.tire_floor)
+                    value *= config.tire_floor + (1-config.tire_floor)*base**(fatigue[who]/config.tire_c/config.tire_bouts)
+                if not isclose(value, bout['effective_'+side], rel_tol=1e-12, abs_tol=1e-12):
+                    raise ValueError('Incorrect effective rating')
+                effective[side] = value
+            a, b = bout['a'], bout['b']
+            probability = (float(result['ratings'][a] > result['ratings'][b])
+                           if result['ratings'][a] != result['ratings'][b] else .5) if result['model'] == 'strong-win' else elo_probability(effective['a'], effective['b'], config.dr)
+            if not isclose(probability, bout['p_a'], rel_tol=1e-12, abs_tol=1e-12):
+                raise ValueError('Incorrect outcome probability')
+            if ((probability == 0 and bout['winner'] == a)
+                    or (probability == 1 and bout['winner'] == b)):
+                raise ValueError('Impossible winner for deterministic probability')
+            if result['model'] == 'elo-tire':
+                load = abs(config.tire_c-(effective['a']-effective['b']))
+                fatigue[a] += load
+                fatigue[b] += load
+            played[a] += 1
+            played[b] += 1
+        if schema == 5:
+            for side, who in sides:
+                for when, state in (('before', before), ('after', fatigue)):
+                    saved = bout[f'fatigue_{when}_{side}']
+                    if who is None:
+                        if saved is not None:
+                            raise ValueError('Fatigue recorded for an empty slot')
+                    elif (saved is None or not isfinite(saved) or saved < 0
+                          or not isclose(saved, state[who], rel_tol=1e-12, abs_tol=1e-9)):
+                        raise ValueError('Incorrect accumulated fatigue')
+
+
+def verify_place_statistics(directory, model, item, samples, config):
+    """Independent integer sums for variance, distances, extrema and CSV rows."""
+    if set(item['place_deviations']) != set(samples):
+        raise ValueError('Incorrect enabled place statistics')
+    for method, errors in samples.items():
+        saved = item['place_deviations'][method]
+        count = len(errors)
+        if saved['samples'] != count or saved['skipped'] != config.repeats-count:
+            raise ValueError('Incorrect place-statistics coverage')
+        expected = []
+        for index in range(config.participants):
+            row = {'place': index+1, **dict.fromkeys(PLACE_FIELDS[1:])}
+            if count:
+                values = [sample[index] for sample in errors]
+                average = sum(values)/count
+                row.update(variance=sum(value*value for value in values)/count-average*average,
+                           mean_abs_deviation=sum(abs(value) for value in values)/count,
+                           max_down=max(0, max(values)), max_up=max(0, -min(values)))
+            expected.append(row)
+        if len(saved['places']) != config.participants:
+            raise ValueError('Incorrect number of true places')
+        stem = f'place-deviations-{model}-{method}'
+        with (directory/f'{stem}.csv').open(newline='', encoding='utf-8') as stream:
+            reader = csv.DictReader(stream)
+            if reader.fieldnames != list(PLACE_FIELDS):
+                raise ValueError('Expected exactly five place-statistics columns')
+            exported = list(reader)
+        if len(exported) != config.participants:
+            raise ValueError('Incomplete place-statistics CSV')
+        for wanted, actual, csv_row in zip(expected, saved['places'], exported, strict=True):
+            if set(actual) != set(PLACE_FIELDS):
+                raise ValueError('Incorrect place-statistics fields')
+            for field in PLACE_FIELDS:
+                value = wanted[field]
+                if value is None:
+                    if actual[field] is not None or csv_row[field]:
+                        raise ValueError('Statistics without samples must be empty')
+                elif (actual[field] is None or not csv_row[field]
+                      or not isclose(value, actual[field], rel_tol=1e-12, abs_tol=1e-12)
+                      or not isclose(value, float(csv_row[field]), rel_tol=1e-12, abs_tol=1e-12)):
+                    raise ValueError('Incorrect per-place statistic')
+        for extension in ('png', 'svg'):
+            path = directory/f'{stem}.{extension}'
+            if not path.is_file() or not path.stat().st_size:
+                raise ValueError('Missing place-statistics plot')
 
 
 def verify_cycle_diagnostics(result, manifest):
@@ -146,12 +238,19 @@ def verify_artifacts(directory: Path | str):
             raise ValueError(f'Missing or empty artifact: {filename}')
     manifest = json.loads((directory/'config.json').read_text())
     summary = json.loads((directory/'summary.json').read_text())
-    if manifest.get('schema_version') != 4:
-        raise ValueError('Expected artifact schema 4; verify older artifacts with their recorded code revision')
+    schema = manifest.get('schema_version')
+    if schema not in (4, 5):
+        raise ValueError('Expected artifact schema 4 or 5')
     require_finite(manifest)
     require_finite(summary)
     config = Config(**manifest['config'])
     config.validate()
+    if schema == 5:
+        bounds = config.rating_bounds()
+        if manifest['rating_bounds'] != (list(bounds) if bounds is not None else None) or manifest['ranking_names'] != RANKING_NAMES:
+            raise ValueError('Incorrect distribution bounds or ranking names')
+    elif config.distribution != 'beta-prime' or 'elo-tire' in manifest['models']:
+        raise ValueError('Schema 4 supports only the original models and distribution')
     models = manifest['models']
     n, repeats = config.participants, config.repeats
     if manifest['status'] != 'complete' or not models or len(set(models)) != len(models) or set(summary) != set(models) or not set(models) <= set(MODELS):
@@ -173,10 +272,12 @@ def verify_artifacts(directory: Path | str):
                       'bracket': [], 'grin_tour': [], 'grin_cycle_score': [],
                       'cycle_activated':0,'cycle_success':0,'cycle_standard_success':0,
                       'cycle_failures':Counter(), 'cycle_subset_grin_tour':[],
-                      'cycle_subset_grin_cycle_score':[]}
+                      'cycle_subset_grin_cycle_score':[], 'rating_fallback': 0,
+                      'place_errors': {RANKING_NAMES[name]: [] for name in RANKING_NAMES if manifest[name]}}
               for model in models}
     def group_key(row):
         return int(row['repeat']), row['model']
+    fields = {}
     with (directory/'participants.csv').open(newline='', encoding='utf-8') as participant_stream, \
             (directory/'bouts.csv').open(newline='', encoding='utf-8') as bout_stream:
         bout_groups = iter(groupby(csv.DictReader(bout_stream), group_key))
@@ -194,6 +295,11 @@ def verify_artifacts(directory: Path | str):
                       'places': {int(row['participant']): int(row['place']) for row in rows},
                       'bouts': []}
             require_finite(result)
+            if schema == 5:
+                if key[0] not in fields:
+                    fields[key[0]] = generate_field(config, key[0])
+                if (result['ratings'], result['draw']) != fields[key[0]]:
+                    raise ValueError('Ratings or draw disagree with the recorded generation seed')
             ranking = result['grin_tour']
             cycle = result['grin_cycle_score']
             if (not manifest['grin_tour']) != (ranking['status'] == 'disabled'):
@@ -227,8 +333,12 @@ def verify_artifacts(directory: Path | str):
                         bout[field] = int(row[field]) if row[field] else None
                     for field in ('p_a', 'p_start_a', 'effective_a', 'effective_b'):
                         bout[field] = float(row[field]) if row[field] else None
+                    if schema == 5:
+                        for field in ('fatigue_before_a', 'fatigue_before_b', 'fatigue_after_a', 'fatigue_after_b'):
+                            bout[field] = float(row[field]) if row[field] else None
                     result['bouts'].append(bout)
             validate_result(result)
+            verify_bout_model(result, config, schema)
             verify_cycle_diagnostics(result, manifest)
             changes = [0.]*n
             for bout in result['bouts']:
@@ -244,6 +354,15 @@ def verify_artifacts(directory: Path | str):
                 if not isclose(initial+change, updated, rel_tol=1e-12, abs_tol=1e-9):
                     raise ValueError('Incorrect post-tournament rating')
             total = totals[key[1]]
+            total['rating_fallback'] += ranking.get('method') == 'opponent_ratings'
+            if schema == 5:
+                # Derive true places independently of the export implementation.
+                true_order = sorted(range(n), key=lambda who: (-result['ratings'][who], who))
+                for internal, method in RANKING_NAMES.items():
+                    if manifest[internal] and result[internal]['status'] == 'ok':
+                        places = result[internal]['places']
+                        total['place_errors'][method].append([places[str(who)]-rank
+                                                            for rank, who in enumerate(true_order, 1)])
             total['strongest'] += result['ratings'][result['champion']] == max(result['ratings'])
             total['bracket'].append(rank_metrics(result['ratings'], result['places']))
             if ranking['status'] == 'ok':
@@ -271,6 +390,10 @@ def verify_artifacts(directory: Path | str):
         raise ValueError('Missing participant groups')
     for model, item in summary.items():
         total = totals[model]
+        if schema == 5:
+            if item['rating_fallback'] != total['rating_fallback']:
+                raise ValueError('Incorrect rating-fallback count')
+            verify_place_statistics(directory, model, item, total['place_errors'], config)
         if item['completed'] != repeats or not isclose(item['strongest_win_rate'], total['strongest']/repeats):
             raise ValueError('Incorrect tournament count or strongest-win rate')
         for status in ('undefined', 'partial'):

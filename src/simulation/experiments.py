@@ -6,6 +6,7 @@
 параметры, seed и окружение. Форматы и воспроизводимость описаны в README.md.
 """
 import csv
+import hashlib
 import json
 import logging
 import platform
@@ -20,6 +21,7 @@ from pathlib import Path
 import numpy as np
 
 from .core import MODELS, Config, generate_field, simulate
+from .place_statistics import RANKING_NAMES, place_errors, summarize_places, write_place_artifacts
 from armplaces.cycle_resolution import DEFAULT_WEIGHTS, normalize_weights
 
 
@@ -58,14 +60,25 @@ def environment():
         dirty = bool(subprocess.check_output(['git', 'status', '--porcelain'], text=True))
     except (OSError, subprocess.CalledProcessError):
         commit, dirty = None, None
+    source_root = Path(__file__).resolve().parent.parent
+    digest = hashlib.sha256()
+    for package in ('armplaces', 'simulation'):
+        for path in sorted((source_root/package).rglob('*.py')):
+            digest.update(str(path.relative_to(source_root)).encode())
+            digest.update(b'\0')
+            digest.update(path.read_bytes())
+            digest.update(b'\0')
     return {'python': platform.python_version(), 'commit': commit, 'dirty': dirty,
+            'source_sha256': digest.hexdigest(),
             'dependencies': dict(sorted((dist.metadata['Name'], dist.version) for dist in distributions()))}
 
 
 def report_markdown(config, summary):
     lines = ['# ArmPlaces: результаты эксперимента', '',
-             f'N={config.participants}; повторов на модель: {config.repeats}; seed={config.seed}.', '',
-             '| Модель | Завершено | Сильнейший победил | MAE сетки | Spearman сетки | Гринёв: полных | Гринёв: только призёры | Гринёв: без мест | MAE Гринёва | Spearman Гринёва |',
+             f'N={config.participants}; повторов на модель: {config.repeats}; seed={config.seed}.',
+             f'Распределение: `{config.distribution}`; границы: {config.rating_bounds() or "без усечения"}.', '',
+             '`grin-cycle` — основной метод без исходных рейтингов; `grin-elo` использует рейтинговый резерв.', '',
+             '| Модель | Завершено | Сильнейший победил | MAE сетки | Spearman сетки | grin-elo: полных | grin-elo: только призёры | grin-elo: без мест | MAE grin-elo | Spearman grin-elo |',
              '|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|']
     def fmt(value):
         return '—' if value is None else f'{value:.6f}'
@@ -74,15 +87,23 @@ def report_markdown(config, summary):
                      f"{fmt(item['bracket']['mae'])} | {fmt(item['bracket']['spearman'])} | "
                      f"{item['grin_tour']['samples']} | {fmt(item['grin_partial_rate'])} | {fmt(item['grin_undefined_rate'])} | "
                      f"{fmt(item['grin_tour']['mae'])} | {fmt(item['grin_tour']['spearman'])} |")
-    lines.extend(['', 'MAE и Spearman Гринёва рассчитаны только по полным расстановкам; partial сохраняет призёров.',
+    lines.extend(['', 'MAE и Spearman графовых методов рассчитаны только по полным расстановкам; partial сохраняет призёров.',
                   'Число определённых корреляций указано в summary.json; для N=1 корреляция отсутствует.',
-                  'Рейтинг внутри турнира фиксирован, обновление выполняется после окончания.', ''])
-    lines.extend(['| Модель | Граф завершился без цикла | Дополнительный этап запущен | Дополнительный этап завершён | MAE нового метода | Spearman нового метода |',
-                  '|---|---:|---:|---:|---:|---:|'])
+                  'Исходный рейтинг фиксирован; эффективная сила зависит от модели. Обновление рейтинга — после турнира.', ''])
+    lines.extend(['| Модель | Граф без цикла | grin-cycle: полных | Доля полных | Этап циклов запущен | Доля запусков | Этап завершён | MAE grin-cycle | Spearman grin-cycle |',
+                  '|---|---:|---:|---:|---:|---:|---:|---:|---:|'])
     for model, item in summary.items():
         cycle = item['grin_cycle_score']
-        lines.append(f"| {model} | {item['cycle_standard_success']} | {item['cycle_activated']} | "
-                     f"{item['cycle_success']} | {fmt(cycle['mae'])} | {fmt(cycle['spearman'])} |")
+        lines.append(f"| {model} | {item['cycle_standard_success']} | {cycle['samples']} | "
+                     f"{fmt(cycle['samples']/config.repeats)} | {item['cycle_activated']} | "
+                     f"{fmt(item['cycle_activated']/config.repeats)} | {item['cycle_success']} | "
+                     f"{fmt(cycle['mae'])} | {fmt(cycle['spearman'])} |")
+    lines.append('')
+    lines.extend(['| Модель | Доля полных grin-elo | Рейтинговый резерв запущен | Доля запусков резерва |',
+                  '|---|---:|---:|---:|'])
+    for model, item in summary.items():
+        lines.append(f"| {model} | {fmt(item['grin_tour']['samples']/config.repeats)} | "
+                     f"{item['rating_fallback']} | {fmt(item['rating_fallback']/config.repeats)} |")
     lines.append('')
     return '\n'.join(lines)
 
@@ -96,8 +117,9 @@ def run_experiments(config: Config, models, grin_tour: bool, output: Path | str,
     models = [model for model in MODELS if model in models]
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
-    manifest = {'schema_version': 4, 'config': asdict(config), 'models': models,
+    manifest = {'schema_version': 5, 'config': asdict(config), 'models': models,
                 'grin_tour': grin_tour, 'grin_cycle_score': grin_cycle_score,
+                'ranking_names': RANKING_NAMES, 'rating_bounds': config.rating_bounds(),
                 'cycle_weights': list(cycle_weights),
                 'normalized_cycle_weights': list(normalized_weights),
                 'environment': environment(), 'status': 'running'}
@@ -111,13 +133,17 @@ def run_experiments(config: Config, models, grin_tour: bool, output: Path | str,
                            'bracket': [], 'grin_tour': [], 'grin_cycle_score': [],
                            'cycle_activated': 0, 'cycle_success': 0,
                            'cycle_standard_success': 0, 'cycle_failures': Counter(),
-                           'cycle_subset_grin_tour': [], 'cycle_subset_grin_cycle_score': []}
+                           'cycle_subset_grin_tour': [], 'cycle_subset_grin_cycle_score': [],
+                           'place_errors': {name: [] for name, enabled in
+                                            (('grin_tour', grin_tour), ('grin_cycle_score', grin_cycle_score)) if enabled},
+                           'rating_fallback': 0}
                     for model in models}
     participants_fields = ['repeat', 'model', 'participant', 'draw_position', 'rating', 'new_rating',
                            'wins', 'losses', 'played', 'place', 'grin_place', 'grin_status', 'grin_reason',
                            'cycle_place', 'cycle_status', 'cycle_reason']
     bouts_fields = ['repeat', 'model', 'match', 'stage', 'a', 'b', 'technical', 'winner', 'loser',
-                    'p_a', 'p_start_a', 'effective_a', 'effective_b', 'previous_bouts_a', 'previous_bouts_b']
+                    'p_a', 'p_start_a', 'effective_a', 'effective_b', 'previous_bouts_a', 'previous_bouts_b',
+                    'fatigue_before_a', 'fatigue_before_b', 'fatigue_after_a', 'fatigue_after_b']
     try:
         with ExitStack() as stack:
             participants_file = stack.enter_context((output/'participants.csv').open('w', newline='', encoding='utf-8'))
@@ -139,6 +165,10 @@ def run_experiments(config: Config, models, grin_tour: bool, output: Path | str,
                     accumulator['completed'] += 1
                     accumulator['strongest_wins'] += ratings[result['champion']] == max(ratings)
                     accumulator['bracket'].append(rank_metrics(ratings, result['places']))
+                    accumulator['rating_fallback'] += ranking.get('method') == 'opponent_ratings'
+                    for method, errors in accumulator['place_errors'].items():
+                        if result[method]['status'] == 'ok':
+                            errors.append(place_errors(ratings, {int(k): v for k, v in result[method]['places'].items()}))
                     if ranking['status'] == 'ok':
                         accumulator['grin_tour'].append(rank_metrics(ratings, {int(k):v for k,v in ranking['places'].items()}))
                     elif ranking['status'] in ('undefined', 'partial'):
@@ -187,7 +217,12 @@ def run_experiments(config: Config, models, grin_tour: bool, output: Path | str,
                     'cycle_standard_success': accumulator['cycle_standard_success'],
                     'cycle_activated': accumulator['cycle_activated'],
                     'cycle_success': accumulator['cycle_success'],
-                    'cycle_failures': dict(accumulator['cycle_failures'])}
+                    'cycle_failures': dict(accumulator['cycle_failures']),
+                    'rating_fallback': accumulator['rating_fallback'],
+                    'place_deviations': {RANKING_NAMES[method]: {
+                        'samples': len(errors), 'skipped': config.repeats-len(errors),
+                        'places': summarize_places(errors, config.participants)}
+                        for method, errors in accumulator['place_errors'].items()}}
             for method in ('bracket', 'grin_tour', 'grin_cycle_score',
                            'cycle_subset_grin_tour', 'cycle_subset_grin_cycle_score'):
                 samples = accumulator[method]
@@ -198,7 +233,11 @@ def run_experiments(config: Config, models, grin_tour: bool, output: Path | str,
                                 'correlation_samples': len(correlations)}
             summary[model] = item
         write_json(output/'summary.json', summary)
-        (output/'report.md').write_text(report_markdown(config, summary), encoding='utf-8')
+        report = report_markdown(config, summary)
+        for model, item in summary.items():
+            for method, statistics in item['place_deviations'].items():
+                report += '\n' + write_place_artifacts(output, model, method, statistics, config)
+        (output/'report.md').write_text(report, encoding='utf-8')
         manifest['status'] = 'complete'
         write_json(output/'config.json', manifest)
         from .verify import verify_artifacts

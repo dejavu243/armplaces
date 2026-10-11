@@ -15,8 +15,8 @@ class ExperimentTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             a, b = Path(directory)/'a', Path(directory)/'b'
             command = [sys.executable, '-m', 'simulation', '--participants', '5', '--repeats', '3', '--grin-tour']
-            subprocess.run(command+['--strong-win', '--elo', '--elo-stamina', '--output', str(a)], check=True, capture_output=True)
-            subprocess.run(command+['--elo-stamina', '--strong-win', '--elo', '--output', str(b)], check=True, capture_output=True)
+            subprocess.run(command+['--strong-win', '--elo', '--elo-stamina', '--elo-tire', '--output', str(a)], check=True, capture_output=True)
+            subprocess.run(command+['--elo-tire', '--elo-stamina', '--strong-win', '--elo', '--output', str(b)], check=True, capture_output=True)
             self.assertTrue(verify_artifacts(a))
             for name in ('summary.json', 'participants.csv', 'bouts.csv', 'tournaments.jsonl'):
                 self.assertEqual((a/name).read_bytes(), (b/name).read_bytes())

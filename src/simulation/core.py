@@ -1,8 +1,9 @@
-"""Генеральная последовательность double elimination и три модели исхода.
+"""Генеральная последовательность double elimination и модели исхода.
 
 Переходы берутся из DE_OLD_fix для N=2–32; GS содержит ровно 4N ячеек. Участник выбывает после двух
 поражений; технические проходы не расходуют силы. strong-win сравнивает рейтинги,
-elo выбирает исход случайно, elo-stamina уменьшает силу после реальных боёв.
+elo выбирает исход случайно, elo-stamina уменьшает силу после реальных боёв,
+elo-tire учитывает накопленную нагрузку по исправленной формуле статьи.
 Рейтинги обновляются только после турнира; журнал независимо проверяется.
 Формулы, порядок раундов и инварианты подробно описаны в README.md.
 """
@@ -18,7 +19,9 @@ from armplaces.cycle_resolution import (DEFAULT_WEIGHTS, normalize_weights,
 from armplaces.tables.DE_OLD_Winner_fix import DE_OLD_winner_fix
 from armplaces.tables.DE_OLD_Loser_fix import DE_OLD_loser_fix
 
-MODELS = ('strong-win', 'elo', 'elo-stamina')
+MODELS = ('strong-win', 'elo', 'elo-stamina', 'elo-tire')
+DISTRIBUTIONS = ('beta-prime', 'weibull', 'uniform')
+MAX_RATING_CANDIDATES = 100_000
 
 
 @dataclass(frozen=True)
@@ -32,6 +35,22 @@ class Config:
     dr: float = 200.0
     k: float = 160.0
     fatigue_rate: float = .05
+    distribution: str = 'beta-prime'
+    weibull_shape: float = 2.2
+    weibull_scale: float = 220.0
+    weibull_location: float = 852.0
+    rating_min: float | None = None
+    rating_max: float | None = None
+    tire_floor: float = .85
+    tire_reference: float = .90
+    tire_c: float = 400.0
+    tire_bouts: int = 3
+
+    def rating_bounds(self):
+        """Resolve explicit truncation or the uniform-only default interval."""
+        if self.rating_min is not None or self.rating_max is not None:
+            return self.rating_min, self.rating_max
+        return (800.0, 2400.0) if self.distribution == 'uniform' else None
 
     def validate(self):
         if isinstance(self.participants, bool) or not isinstance(self.participants, int) or not 1 <= self.participants <= 32:
@@ -46,6 +65,26 @@ class Config:
             raise ValueError('k must be finite and nonnegative')
         if not isfinite(self.fatigue_rate) or not 0 <= self.fatigue_rate < 1:
             raise ValueError('fatigue-rate must be finite in [0, 1)')
+        if self.distribution not in DISTRIBUTIONS:
+            raise ValueError(f'Unknown distribution: {self.distribution}')
+        if any(not isfinite(x) or x <= 0 for x in (self.weibull_shape, self.weibull_scale, self.tire_c)):
+            raise ValueError('weibull-shape, weibull-scale and tire-c must be finite and positive')
+        if not isfinite(self.weibull_location) or self.weibull_location < 0:
+            raise ValueError('weibull-location must be finite and nonnegative')
+        if (not all(isfinite(x) for x in (self.tire_floor, self.tire_reference))
+                or not 0 < self.tire_floor < self.tire_reference <= 1):
+            raise ValueError('Expected 0 < tire-floor < tire-reference <= 1')
+        if isinstance(self.tire_bouts, bool) or not isinstance(self.tire_bouts, int) or self.tire_bouts < 1:
+            raise ValueError('tire-bouts must be a positive integer')
+        if (self.rating_min is None) != (self.rating_max is None):
+            raise ValueError('rating-min and rating-max must be supplied together')
+        bounds = self.rating_bounds()
+        if bounds is not None:
+            lower, upper = bounds
+            if not all(isfinite(x) for x in bounds) or not 0 < lower < upper:
+                raise ValueError('Expected finite rating bounds with 0 < rating-min < rating-max')
+            if self.distribution == 'weibull' and upper <= self.weibull_location:
+                raise ValueError('Rating interval does not intersect Weibull support')
 
 
 @dataclass(frozen=True)
@@ -119,17 +158,52 @@ def elo_probability(a: float, b: float, dr: float = 200.) -> float:
     return 1 / (1 + e)
 
 
+def sample_ratings(config: Config, rng, size: int):
+    with np.errstate(over='ignore', divide='ignore', invalid='ignore'):
+        if config.distribution == 'beta-prime':
+            ratings = config.scale * (rng.gamma(config.alpha, size=size) /
+                                      rng.gamma(config.beta, size=size))
+        elif config.distribution == 'weibull':
+            ratings = config.weibull_location + config.weibull_scale * rng.weibull(config.weibull_shape, size=size)
+        else:
+            ratings = rng.uniform(*config.rating_bounds(), size=size)
+    if not np.all(np.isfinite(ratings)) or np.any(ratings <= 0):
+        raise ValueError('Distribution produced nonfinite/zero ratings; choose less extreme parameters')
+    return ratings
+
+
 def generate_field(config: Config, repeat: int):
     config.validate()
     rng = np.random.default_rng(np.random.SeedSequence([config.seed, repeat, 0]))
-    with np.errstate(over='ignore', divide='ignore', invalid='ignore'):
-        ratings = config.scale * (rng.gamma(config.alpha, size=config.participants) /
-                                  rng.gamma(config.beta, size=config.participants))
-    if not np.all(np.isfinite(ratings)) or np.any(ratings <= 0):
-        raise ValueError('Distribution produced nonfinite/zero ratings; choose less extreme parameters')
+    bounds = config.rating_bounds()
+    if bounds is None:
+        # Preserve the original two gamma draws exactly when no bounds are set.
+        ratings = sample_ratings(config, rng, config.participants)
+    else:
+        accepted = []
+        candidates = 0
+        while len(accepted) < config.participants and candidates < MAX_RATING_CANDIDATES:
+            size = min(max(256, config.participants-len(accepted)), MAX_RATING_CANDIDATES-candidates)
+            batch = sample_ratings(config, rng, size)
+            accepted.extend(batch[(batch >= bounds[0]) & (batch < bounds[1])].tolist())
+            candidates += size
+        if len(accepted) < config.participants:
+            raise ValueError('Rating interval is too improbable: exhausted 100000 candidates; widen the bounds')
+        ratings = accepted[:config.participants]
     draw_rng = np.random.default_rng(np.random.SeedSequence([config.seed, repeat, 1]))
     draw = [int(x) for x in draw_rng.permutation(config.participants)]
     return [float(x) for x in ratings], draw
+
+
+def tire_effective_rating(rating: float, fatigue: float, config: Config) -> float:
+    """Article fatigue curve with a valid positive base and a fixed lower limit."""
+    if not isfinite(rating) or rating <= 0 or not isfinite(fatigue) or fatigue < 0:
+        raise ValueError('Expected a finite positive rating and finite nonnegative fatigue')
+    if fatigue == 0 or config.tire_reference == 1:
+        return rating
+    base = (config.tire_reference-config.tire_floor)/(1-config.tire_floor)
+    factor = config.tire_floor + (1-config.tire_floor)*exp(log(base)*(fatigue/config.tire_c/config.tire_bouts))
+    return rating*factor
 
 
 def simulate(config: Config, model: str, ratings: list[float], draw: list[int],
@@ -150,11 +224,12 @@ def simulate(config: Config, model: str, ratings: list[float], draw: list[int],
     sequence[:n] = draw
     if rng is None:
         # Common random numbers for the two Elo variants; separate generator per run.
-        stream = 2 if model in ('elo', 'elo-stamina') else 3
+        stream = 2 if model in ('elo', 'elo-stamina', 'elo-tire') else 3
         rng = np.random.default_rng(np.random.SeedSequence([config.seed, repeat, stream]))
     losses, wins, played = [0]*n, [0]*n, [0]*n
     deltas, bouts, eliminated = [0.]*n, [], {}
     real_pairs = []
+    fatigue = [0.]*n
     reset_needed = False
     for index, match in enumerate(bracket.matches):
         if match.stage == 'reset' and not reset_needed:
@@ -166,6 +241,8 @@ def simulate(config: Config, model: str, ratings: list[float], draw: list[int],
                  'effective_a': None, 'effective_b': None,
                  'previous_bouts_a': played[a] if a is not None else 0,
                  'previous_bouts_b': played[b] if b is not None else 0}
+        entry.update({f'fatigue_{when}_{side}': fatigue[who] if who is not None else None
+                      for when in ('before', 'after') for side, who in (('a', a), ('b', b))})
         if technical:
             winner, loser = (a if a is not None else b), None
         else:
@@ -175,6 +252,9 @@ def simulate(config: Config, model: str, ratings: list[float], draw: list[int],
             if model == 'elo-stamina':
                 effective_a *= (1-config.fatigue_rate)**played[a]
                 effective_b *= (1-config.fatigue_rate)**played[b]
+            elif model == 'elo-tire':
+                effective_a = tire_effective_rating(ratings[a], fatigue[a], config)
+                effective_b = tire_effective_rating(ratings[b], fatigue[b], config)
             baseline = elo_probability(ratings[a], ratings[b], config.dr)
             probability = (float(ratings[a] > ratings[b]) if ratings[a] != ratings[b] else .5) if model == 'strong-win' else elo_probability(effective_a, effective_b, config.dr)
             winner, loser = (a, b) if rng.random() < probability else (b, a)
@@ -192,6 +272,13 @@ def simulate(config: Config, model: str, ratings: list[float], draw: list[int],
                 reset_needed = losses[loser] == 1
             entry.update(p_a=probability, p_start_a=baseline,
                          effective_a=effective_a, effective_b=effective_b)
+            if model == 'elo-tire':
+                load = abs(config.tire_c-(effective_a-effective_b))
+                fatigue[a] += load
+                fatigue[b] += load
+                if not all(isfinite(fatigue[who]) for who in (a, b)):
+                    raise ValueError('Nonfinite accumulated fatigue; choose less extreme ratings or tire-c')
+            entry.update(fatigue_after_a=fatigue[a], fatigue_after_b=fatigue[b])
         entry.update(winner=winner, loser=loser)
         bouts.append(entry)
         for who, destination in ((winner, match.winner_to), (loser, match.loser_to)):
