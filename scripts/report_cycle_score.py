@@ -42,7 +42,7 @@ def main():
     for n in SIZES:
         new=NEW/f'n{n}'
         manifest=json.loads((new/'config.json').read_text())
-        if (manifest['schema_version']!=4 or manifest['config']['seed']!=42
+        if (manifest['schema_version'] not in (4, 5) or manifest['config']['seed']!=42
                 or manifest['config']['repeats']!=1000 or manifest['status']!='complete'):
             raise RuntimeError(f'Invalid manifest for N={n}')
         current_revision=manifest['environment']['commit']

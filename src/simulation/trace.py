@@ -22,7 +22,7 @@ def trace_markdown(config: Config, model: str = 'strong-win', repeat: int = 0) -
              f'N={config.participants}, seed={config.seed}, repeat={repeat}, модель `{model}`.', '',
              'Номера спортсменов и ячеек здесь начинаются с 1; `·` — пустая ячейка.',
              'В Python и CSV ID начинаются с 0: показанный номер = ID + 1.', '',
-             '## 1. Рейтинги BetaPrime', '', '| Спортсмен | Исходный рейтинг |', '|---:|---:|']
+             f'## 1. Рейтинги {config.distribution}', '', '| Спортсмен | Исходный рейтинг |', '|---:|---:|']
     lines.extend(f'| {i+1} | {rating:.6f} |' for i, rating in enumerate(ratings))
     lines += ['', '## 2. Жеребьёвка', '', ', '.join(str(who+1) for who in draw), '',
               '## 3. GS до первого боя', '', f'Длина: {len(gs)} = 4N.', '', f'```text\n{cells()}\n```', '',
@@ -44,7 +44,7 @@ def trace_markdown(config: Config, model: str = 'strong-win', repeat: int = 0) -
         raise RuntimeError('Trace does not match saved GS')
     lines += ['## 5. Завершение и места', '',
               'Суперфинал проведён.' if result['reset'] else 'Суперфинал не нужен.', '',
-              '| Спортсмен | Место по сетке | Место GrinTour |', '|---:|---:|---:|']
+              '| Спортсмен | Место по сетке | Место grin-elo |', '|---:|---:|---:|']
     lines.extend(f'| {who+1} | {place} | {result["grin_tour"]["places"][str(who)]} |'
                  for who, place in sorted(result['places'].items(), key=lambda pair: pair[1]))
     lines += ['', 'После завершения турнира рассчитываются новые рейтинги; '

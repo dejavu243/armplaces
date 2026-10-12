@@ -84,3 +84,48 @@ jobs:
           path: results/n${{ matrix.participants }}/
           retention-days: 30
           if-no-files-found: warn
+
+  elo-tire:
+    name: Elo-tire smoke experiment (300 tournaments)
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            pyproject.toml
+      - name: Create project virtual environment
+        run: python -m venv .venv
+      - name: Install runtime dependencies
+        run: .venv/bin/python -m pip install -e .
+      - name: Run three distributions and validate artifacts
+        shell: bash
+        run: |
+          mkdir -p results/elo-tire-ci
+          .venv/bin/python scripts/run_elo_tire_experiment.py \
+            --smoke --output results/elo-tire-ci \
+            2>&1 | tee results/elo-tire-ci/console.log
+      - name: Publish job summary
+        if: always()
+        shell: bash
+        run: |
+          if test -f results/elo-tire-ci/batch-report.md; then
+            cat results/elo-tire-ci/batch-report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Experiment did not finish; inspect logs and partial artifacts.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload experiment results and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: elo-tire-smoke-seed42
+          path: results/elo-tire-ci/
+          retention-days: 30
+          if-no-files-found: warn
