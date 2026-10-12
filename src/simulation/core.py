@@ -18,6 +18,8 @@ from armplaces.cycle_resolution import (DEFAULT_WEIGHTS, normalize_weights,
                                         rank_tournament_cycle_score)
 from armplaces.tables.DE_OLD_Winner_fix import DE_OLD_winner_fix
 from armplaces.tables.DE_OLD_Loser_fix import DE_OLD_loser_fix
+from .rating_defaults import (BETA_PRIME_ALPHA, BETA_PRIME_BETA,
+                              BETA_PRIME_SCALE, BETA_PRIME_BOUNDS, UNIFORM_BOUNDS)
 
 MODELS = ('strong-win', 'elo', 'elo-stamina', 'elo-tire')
 DISTRIBUTIONS = ('beta-prime', 'weibull', 'uniform')
@@ -29,9 +31,9 @@ class Config:
     participants: int = 32
     repeats: int = 1000
     seed: int = 42
-    alpha: float = 2.0
-    beta: float = 3.0
-    scale: float = 1000.0
+    alpha: float = BETA_PRIME_ALPHA
+    beta: float = BETA_PRIME_BETA
+    scale: float = BETA_PRIME_SCALE
     dr: float = 200.0
     k: float = 160.0
     fatigue_rate: float = .05
@@ -45,12 +47,17 @@ class Config:
     tire_reference: float = .90
     tire_c: float = 400.0
     tire_bouts: int = 3
+    unbounded_beta_prime: bool = False
 
     def rating_bounds(self):
-        """Resolve explicit truncation or the uniform-only default interval."""
+        """Resolve explicit bounds or the distribution's default range."""
         if self.rating_min is not None or self.rating_max is not None:
             return self.rating_min, self.rating_max
-        return (800.0, 2400.0) if self.distribution == 'uniform' else None
+        if self.distribution == 'uniform':
+            return UNIFORM_BOUNDS
+        if self.distribution == 'beta-prime' and not self.unbounded_beta_prime:
+            return BETA_PRIME_BOUNDS
+        return None
 
     def validate(self):
         if isinstance(self.participants, bool) or not isinstance(self.participants, int) or not 1 <= self.participants <= 32:
@@ -67,6 +74,10 @@ class Config:
             raise ValueError('fatigue-rate must be finite in [0, 1)')
         if self.distribution not in DISTRIBUTIONS:
             raise ValueError(f'Unknown distribution: {self.distribution}')
+        if not isinstance(self.unbounded_beta_prime, bool):
+            raise ValueError('unbounded-beta-prime must be a boolean')
+        if self.unbounded_beta_prime and (self.distribution != 'beta-prime' or self.rating_min is not None or self.rating_max is not None):
+            raise ValueError('unbounded-beta-prime requires beta-prime without explicit rating bounds')
         if any(not isfinite(x) or x <= 0 for x in (self.weibull_shape, self.weibull_scale, self.tire_c)):
             raise ValueError('weibull-shape, weibull-scale and tire-c must be finite and positive')
         if not isfinite(self.weibull_location) or self.weibull_location < 0:
