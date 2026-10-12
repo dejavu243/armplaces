@@ -14,6 +14,8 @@ from functools import lru_cache
 import numpy as np
 
 from armplaces.topological_sort import rank_tournament
+from armplaces.elimination import rank_tournament_far
+from armplaces.zhivora import rank_tournament_zhivora
 from armplaces.cycle_resolution import (DEFAULT_WEIGHTS, normalize_weights,
                                         rank_tournament_cycle_score)
 from armplaces.tables.DE_OLD_Winner_fix import DE_OLD_winner_fix
@@ -219,9 +221,13 @@ def tire_effective_rating(rating: float, fatigue: float, config: Config) -> floa
 
 def simulate(config: Config, model: str, ratings: list[float], draw: list[int],
              repeat: int = 0, grin_tour: bool = False, rng=None, *,
-             grin_cycle_score: bool = False, cycle_weights=DEFAULT_WEIGHTS) -> dict:
+             grin_cycle_score: bool = False, cycle_weights=DEFAULT_WEIGHTS,
+             far_tour: bool = False, zhivora_tour: bool = False,
+             zhivora_fixed_top: int = 4) -> dict:
     config.validate()
     normalized_weights = normalize_weights(cycle_weights)
+    if zhivora_tour and (isinstance(zhivora_fixed_top, bool) or zhivora_fixed_top not in (4, 6)):
+        raise ValueError('zhivora-fixed-top must be 4 or 6')
     n = config.participants
     if model not in MODELS:
         raise ValueError(f'Unknown model: {model}')
@@ -328,6 +334,11 @@ def simulate(config: Config, model: str, ratings: list[float], draw: list[int],
               'places': places, 'grin_tour': ranking, 'grin_cycle_score': cycle_ranking,
               'bouts': bouts, 'sequence': sequence,
               'reset': reset_needed, 'eliminated_slots': eliminated_slots, 'bracket': 'DE_OLD_fix'}
+    if far_tour or zhivora_tour:
+        names = {i: str(i) for i in draw}
+        result['far_tour'] = rank_tournament_far(names, real_pairs) if far_tour else {'status': 'disabled', 'reason': '', 'places': {}}
+        result['zhivora_tour'] = (rank_tournament_zhivora(names, real_pairs, fixed_top=zhivora_fixed_top)
+                                 if zhivora_tour else {'status': 'disabled', 'reason': '', 'places': {}})
     validate_result(result)
     return result
 
@@ -411,6 +422,22 @@ def validate_result(result: dict):
             raise RuntimeError('Invalid undefined cycle-score result')
     elif cycle_ranking['status'] != 'disabled' or cycle_ranking['places']:
         raise RuntimeError('Invalid cycle-score status')
+    for method in ('far_tour', 'zhivora_tour'):
+        if method not in result:
+            continue
+        ranking = result[method]
+        if ranking['status'] == 'ok':
+            if (set(ranking['places']) != set(map(str, range(n)))
+                    or sorted(ranking['places'].values()) != list(range(1, n+1))):
+                raise RuntimeError(f'Incomplete {method} ranking')
+            podium = {str(i): place for i, place in result['places'].items() if place <= 3}
+            if any(ranking['places'][name] != place for name, place in podium.items()):
+                raise RuntimeError(f'{method} changed the decisive-bout podium')
+        elif ranking['status'] == 'undefined':
+            if ranking['places'] or not ranking['reason']:
+                raise RuntimeError(f'Invalid undefined {method} ranking')
+        elif ranking['status'] != 'disabled' or ranking['places']:
+            raise RuntimeError(f'Invalid {method} status')
 
 
 def validate_sequence(result: dict):
