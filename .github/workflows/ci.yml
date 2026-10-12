@@ -105,12 +105,12 @@ jobs:
         run: python -m venv .venv
       - name: Install runtime dependencies
         run: .venv/bin/python -m pip install -e .
-      - name: Run three distributions and validate artifacts
+      - name: Run calibrated beta-prime, uniform, and Weibull; validate artifacts
         shell: bash
         run: |
           mkdir -p results/elo-tire-ci
           .venv/bin/python scripts/run_elo_tire_experiment.py \
-            --smoke --output results/elo-tire-ci \
+            --smoke --rating-min 600 --rating-max 1900 --output results/elo-tire-ci \
             2>&1 | tee results/elo-tire-ci/console.log
       - name: Publish job summary
         if: always()

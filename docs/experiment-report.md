@@ -3,6 +3,10 @@
 N=8, 16, 32; модели `strong-win`, `elo`, `elo-stamina`; по 1000 повторов;
 seed=42. Веса критериев 0.33, 0.33, 0.33, нормированы до 1.
 
+Историческая серия использует beta-prime α=2, β=3, scale=1000 без границ.
+Она предшествует [калибровке по реальным данным](beta-prime-calibration.md);
+таблицы этой серии сохранены. Новая серия: [elo-tire-report.md](elo-tire-report.md).
+
 Новый метод запускается после стандартного графового прохода **только при
 остаточном цикле**. Базовый GrinTour использует рейтинговый резерв.
 Новый метод не получает исходные рейтинги при разрешении цикла.
@@ -71,6 +75,7 @@ MAE меньше — лучше, Spearman больше — лучше. Метр�
 for n in 8 16 32; do
   .venv/bin/python -m simulation --strong-win --elo --elo-stamina \
     --grin-tour --grin-cycle-score --cycle-weights 0.33 0.33 0.33 \
+    --alpha 2 --beta 3 --scale 1000 --unbounded-beta-prime \
     --participants "$n" --repeats 1000 --seed 42 \
     --output "results/cycle-score/n$n" || exit
 done
