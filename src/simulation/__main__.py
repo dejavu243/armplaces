@@ -24,6 +24,10 @@ def main(argv=None):
                         help='GrinTour with initial opponent ratings as fallback')
     parser.add_argument('--grin-cycle', '--grin-cycle-score', dest='grin_cycle_score', action='store_true',
                         help='Resolve residual GrinTour cycles using three weighted criteria')
+    parser.add_argument('--far-tour', action='store_true', help='Assign individual places by chronological second losses')
+    parser.add_argument('--zhivora-tour', action='store_true', help='Rank win groups by the last winner place')
+    parser.add_argument('--zhivora-fixed-top', type=int, choices=(4, 6), default=4,
+                        help='Zhivora fixed leading places: 4 (description) or 6 (normal Pascal path)')
     parser.add_argument('--cycle-weights', nargs=3, type=float, metavar=('CHRONOLOGY','LOSSES','PLACE'),
                         help='Three nonnegative cycle scores; requires --grin-cycle')
     defaults = Config()
@@ -55,7 +59,9 @@ def main(argv=None):
     try:
         run_experiments(config, models, args.grin_tour, args.output,
                         grin_cycle_score=args.grin_cycle_score,
-                        cycle_weights=args.cycle_weights or DEFAULT_WEIGHTS)
+                        cycle_weights=args.cycle_weights or DEFAULT_WEIGHTS,
+                        far_tour=args.far_tour, zhivora_tour=args.zhivora_tour,
+                        zhivora_fixed_top=args.zhivora_fixed_top)
     except ValueError as exc:
         parser.error(str(exc))
     print(f'Results and report: {args.output.resolve()}')
