@@ -21,7 +21,7 @@ from test.test_simulation import FixedRandom
 
 class DistributionTests(unittest.TestCase):
     def test_original_generation_is_unchanged(self):
-        config = Config(participants=17)
+        config = Config(participants=17, alpha=2, beta=3, scale=1000, unbounded_beta_prime=True)
         rng = np.random.default_rng(np.random.SeedSequence([42, 3, 0]))
         expected = 1000*(rng.gamma(2, size=17)/rng.gamma(3, size=17))
         ratings, draw = generate_field(config, 3)
@@ -37,8 +37,8 @@ class DistributionTests(unittest.TestCase):
                 self.assertEqual(field, generate_field(config, repeat))
                 self.assertTrue(all(900 <= value < 1300 for value in field[0]))
                 self.assertEqual(field[1], generate_field(Config(), repeat)[1])
-        self.assertEqual(Config(distribution='uniform').rating_bounds(), (800, 2400))
-        self.assertTrue(all(800 <= value < 2400 for value in generate_field(Config(distribution='uniform'), 0)[0]))
+        self.assertEqual(Config(distribution='uniform').rating_bounds(), (600, 1900))
+        self.assertTrue(all(600 <= value < 1900 for value in generate_field(Config(distribution='uniform'), 0)[0]))
         self.assertTrue(all(value > 852 for value in generate_field(Config(distribution='weibull'), 0)[0]))
 
     def test_truncation_rejects_instead_of_clipping_or_rescaling(self):

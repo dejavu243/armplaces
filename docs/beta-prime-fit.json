@@ -1,0 +1,111 @@
+{
+  "mle_parameters": {
+    "alpha": 135.07438731419165,
+    "beta": 65.15810592934871,
+    "scale": 529.9776598690939
+  },
+  "parameters": {
+    "alpha": 135.1,
+    "beta": 65.2,
+    "scale": 530.0
+  },
+  "attempts": [
+    {
+      "start": [
+        80.0,
+        73.0,
+        1000.0
+      ],
+      "success": true,
+      "parameters": [
+        135.07438731419165,
+        65.15810592934871,
+        529.9776598690939
+      ],
+      "negative_log_likelihood": 1221.846107016958,
+      "iterations": 180
+    },
+    {
+      "start": [
+        500.0,
+        47.0,
+        100.0
+      ],
+      "success": true,
+      "parameters": [
+        135.07567667770672,
+        65.15779287242994,
+        529.9700379696661
+      ],
+      "negative_log_likelihood": 1221.8461070169765,
+      "iterations": 215
+    },
+    {
+      "start": [
+        40.0,
+        100.0,
+        2800.0
+      ],
+      "success": true,
+      "parameters": [
+        135.07437793679193,
+        65.15817572086696,
+        529.9782789228415
+      ],
+      "negative_log_likelihood": 1221.8461070169744,
+      "iterations": 135
+    }
+  ],
+  "negative_log_likelihood": 1221.846107016958,
+  "rounded_negative_log_likelihood": 1221.8468135090345,
+  "source": "docs/data/real-ratings.txt",
+  "source_sha256": "19f7f464155090f8208c3d81d07a773ff8f650d899cfbb3a13d716e67673b84c",
+  "observations": 187,
+  "bounds": [
+    600.0,
+    1900.0
+  ],
+  "location": 0,
+  "method": "truncated maximum likelihood; 3 deterministic Nelder-Mead starts; rounding to 0.1",
+  "scipy_version": "1.15.3",
+  "numpy_version": "2.2.6",
+  "observed": {
+    "minimum": 763.0,
+    "maximum": 1607.0,
+    "mean": 1115.5775401069518,
+    "std_ddof0": 170.06707745019787,
+    "quantiles": [
+      847.3000000000001,
+      997.0,
+      1094.0,
+      1220.5,
+      1399.8
+    ]
+  },
+  "diagnostics": {
+    "ks_distance": 0.06075842894900407,
+    "acceptance_probability": 0.9997347755311521,
+    "mean": 1115.1062726196296,
+    "std_ddof0": 169.8538540161464,
+    "quantiles": [
+      861.7092029036125,
+      995.0238628653708,
+      1101.073034005155,
+      1219.8717420848657,
+      1416.7297432761911
+    ]
+  },
+  "legacy_truncated_diagnostics": {
+    "ks_distance": 0.34508924093821686,
+    "acceptance_probability": 0.3972064200156348,
+    "mean": 1058.7770941334466,
+    "std_ddof0": 348.24436661726344,
+    "quantiles": [
+      629.5547854543184,
+      762.8762166281643,
+      979.7882055892192,
+      1302.7298188259028,
+      1738.315547285086
+    ]
+  }
+}

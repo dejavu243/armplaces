@@ -36,7 +36,9 @@ def main(argv=None):
         parser.add_argument('--'+name.replace('_', '-'), type=float, default=getattr(defaults, name),
                             help=f'Default: {getattr(defaults, name)}')
     parser.add_argument('--distribution', choices=DISTRIBUTIONS, default=defaults.distribution,
-                        help='Rating distribution; uniform defaults to [800, 2400)')
+                        help='Rating distribution; beta-prime and uniform default to [600, 1900)')
+    parser.add_argument('--unbounded-beta-prime', action='store_true',
+                        help='Disable the beta-prime default bounds; use with old alpha/beta/scale to reproduce historical runs')
     parser.add_argument('--output', type=Path, default=Path('results/comparison'), help='Output directory (overwrites previous run files)')
     args = parser.parse_args(argv)
     models = [model for model in MODELS if getattr(args, model.replace('-', '_'))]

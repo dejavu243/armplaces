@@ -243,7 +243,15 @@ def verify_artifacts(directory: Path | str):
         raise ValueError('Expected artifact schema 4 or 5')
     require_finite(manifest)
     require_finite(summary)
-    config = Config(**manifest['config'])
+    parameters = dict(manifest['config'])
+    # Earlier v4/v5 exports predate calibrated, bounded beta-prime defaults.
+    if 'unbounded_beta_prime' not in parameters:
+        distribution = parameters.get('distribution', 'beta-prime')
+        no_bounds = parameters.get('rating_min') is None and parameters.get('rating_max') is None
+        parameters['unbounded_beta_prime'] = distribution == 'beta-prime' and no_bounds
+        if schema == 5 and distribution == 'uniform' and no_bounds:
+            parameters['rating_min'], parameters['rating_max'] = manifest['rating_bounds']
+    config = Config(**parameters)
     config.validate()
     if schema == 5:
         bounds = config.rating_bounds()
