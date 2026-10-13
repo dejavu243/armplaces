@@ -4,6 +4,8 @@ import csv
 import numpy as np
 
 RANKING_NAMES = {'grin_tour': 'grin-elo', 'grin_cycle_score': 'grin-cycle'}
+ALL_RANKING_NAMES = {'far_tour': 'far-tour', 'zhivora_tour': 'zhivora-tour',
+                     'grin_cycle_score': 'grin-cycle', 'grin_tour': 'grin-elo'}
 PLACE_FIELDS = ('place', 'variance', 'mean_abs_deviation', 'max_down', 'max_up')
 
 
