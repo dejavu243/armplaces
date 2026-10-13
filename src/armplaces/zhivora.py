@@ -1,7 +1,8 @@
 """Zhivora-Tour: fixed leading places, win groups, last winner's place.
 
-The requested comparison fixes places 1–4. fixed_top=6 reproduces the normal
-power-of-two path of the supplied Unit11.pas (1–4, then 5–6 by their last winners).
+The default fixes places 1–6, reproducing the normal power-of-two path of the
+supplied Unit11.pas (1–4, then 5–6 by their last winners). fixed_top=4 is the
+alternative from the initial prose description.
 The group pass follows lines 1530–1570, including stable input order and temporary
 keys for an opponent whose place is not assigned yet. No initial ratings are used.
 """
@@ -9,7 +10,7 @@ keys for an opponent whose place is not assigned yet. No initial ratings are use
 from .elimination import elimination_history
 
 
-def rank_tournament_zhivora(names: dict, pairs: list, *, fixed_top: int = 4) -> dict:
+def rank_tournament_zhivora(names: dict, pairs: list, *, fixed_top: int = 6) -> dict:
     if isinstance(fixed_top, bool) or fixed_top not in (4, 6):
         raise ValueError('Zhivora fixed_top must be 4 or 6')
     history = elimination_history(names, pairs)

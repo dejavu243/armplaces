@@ -146,7 +146,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--repeats', type=int, default=10000)
     parser.add_argument('--seed', type=int, default=42)
-    parser.add_argument('--zhivora-fixed-top', type=int, choices=(4, 6), default=4)
+    parser.add_argument('--zhivora-fixed-top', type=int, choices=(4, 6), default=6,
+                        help='Default: 6, matching the normal Pascal path; 4 uses the initial description')
     parser.add_argument('--output', type=Path)
     parser.add_argument('--report', type=Path)
     parser.add_argument('--smoke', action='store_true', help='100 repeats at each N: 300 tournaments')

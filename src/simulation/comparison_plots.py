@@ -20,7 +20,7 @@ def save(figure, destination):
             path.write_text('\n'.join(line.rstrip() for line in path.read_text().splitlines())+'\n')
 
 
-def comparison_panels(summary, config, destination, *, zhivora_fixed_top=4):
+def comparison_panels(summary, config, destination, *, zhivora_fixed_top=6):
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
@@ -52,7 +52,7 @@ def comparison_panels(summary, config, destination, *, zhivora_fixed_top=4):
     plt.close(figure)
 
 
-def mae_overview(categories, destination, *, zhivora_fixed_top=4):
+def mae_overview(categories, destination, *, zhivora_fixed_top=6):
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt

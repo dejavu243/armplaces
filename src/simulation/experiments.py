@@ -142,7 +142,7 @@ def report_markdown(config, summary, *, zhivora_fixed_top=None):
 def run_experiments(config: Config, models, grin_tour: bool, output: Path | str, *,
                     grin_cycle_score: bool = False, cycle_weights=DEFAULT_WEIGHTS,
                     far_tour: bool = False, zhivora_tour: bool = False,
-                    zhivora_fixed_top: int = 4) -> dict:
+                    zhivora_fixed_top: int = 6) -> dict:
     config.validate()
     normalized_weights = normalize_weights(cycle_weights)
     if not models or any(model not in MODELS for model in models):

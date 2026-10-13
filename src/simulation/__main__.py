@@ -26,8 +26,8 @@ def main(argv=None):
                         help='Resolve residual GrinTour cycles using three weighted criteria')
     parser.add_argument('--far-tour', action='store_true', help='Assign individual places by chronological second losses')
     parser.add_argument('--zhivora-tour', action='store_true', help='Rank win groups by the last winner place')
-    parser.add_argument('--zhivora-fixed-top', type=int, choices=(4, 6), default=4,
-                        help='Zhivora fixed leading places: 4 (description) or 6 (normal Pascal path)')
+    parser.add_argument('--zhivora-fixed-top', type=int, choices=(4, 6), default=6,
+                        help='Zhivora fixed leading places: 6 (default, normal Pascal path) or 4 (initial description)')
     parser.add_argument('--cycle-weights', nargs=3, type=float, metavar=('CHRONOLOGY','LOSSES','PLACE'),
                         help='Three nonnegative cycle scores; requires --grin-cycle')
     defaults = Config()

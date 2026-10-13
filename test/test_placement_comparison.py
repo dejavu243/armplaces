@@ -51,7 +51,7 @@ class ComparisonArtifactTests(unittest.TestCase):
         self.assertTrue(verify_artifacts(self.path))
         manifest = json.loads((self.path/'config.json').read_text())
         self.assertEqual(manifest['schema_version'], 6)
-        self.assertEqual(manifest['zhivora_fixed_top'], 4)
+        self.assertEqual(manifest['zhivora_fixed_top'], 6)
         summary = json.loads((self.path/'summary.json').read_text())['elo-tire']
         self.assertEqual(len(summary['paired_comparisons']), 6)
         for internal, name in manifest['ranking_names'].items():
@@ -111,14 +111,14 @@ class ComparisonArtifactTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'per-tournament mae'):
                 verify_artifacts(path)
 
-    def test_singleton_and_pascal_mode(self):
+    def test_singleton_and_optional_top_four_mode(self):
         with tempfile.TemporaryDirectory() as directory:
             run_experiments(Config(participants=1, repeats=2), ['elo-tire'], True, directory,
                             grin_cycle_score=True, far_tour=True, zhivora_tour=True)
             self.assertTrue(verify_artifacts(directory))
         with tempfile.TemporaryDirectory() as directory:
             run_experiments(Config(participants=16, repeats=1), ['elo-tire'], True, directory,
-                            grin_cycle_score=True, far_tour=True, zhivora_tour=True, zhivora_fixed_top=6)
+                            grin_cycle_score=True, far_tour=True, zhivora_tour=True, zhivora_fixed_top=4)
             self.assertTrue(verify_artifacts(directory))
 
     def test_cli_flags_and_legacy_schema_are_preserved(self):
@@ -128,6 +128,7 @@ class ComparisonArtifactTests(unittest.TestCase):
                             '--zhivora-tour', '--grin-tour', '--grin-cycle-score', '--participants', '8',
                             '--repeats', '1', '--output', str(path/'new')], check=True, capture_output=True)
             self.assertTrue(verify_artifacts(path/'new'))
+            self.assertEqual(json.loads((path/'new/config.json').read_text())['zhivora_fixed_top'], 6)
             run_experiments(Config(participants=2, repeats=1), ['elo'], True, path/'legacy')
             self.assertEqual(json.loads((path/'legacy/config.json').read_text())['schema_version'], 5)
             self.assertTrue(verify_artifacts(path/'legacy'))

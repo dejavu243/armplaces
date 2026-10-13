@@ -223,7 +223,7 @@ def simulate(config: Config, model: str, ratings: list[float], draw: list[int],
              repeat: int = 0, grin_tour: bool = False, rng=None, *,
              grin_cycle_score: bool = False, cycle_weights=DEFAULT_WEIGHTS,
              far_tour: bool = False, zhivora_tour: bool = False,
-             zhivora_fixed_top: int = 4) -> dict:
+             zhivora_fixed_top: int = 6) -> dict:
     config.validate()
     normalized_weights = normalize_weights(cycle_weights)
     if zhivora_tour and (isinstance(zhivora_fixed_top, bool) or zhivora_fixed_top not in (4, 6)):

@@ -110,7 +110,7 @@ jobs:
         run: |
           mkdir -p results/placement-comparison-ci
           .venv/bin/python scripts/run_placement_comparison.py \
-            --smoke --zhivora-fixed-top 4 --output results/placement-comparison-ci \
+            --smoke --zhivora-fixed-top 6 --output results/placement-comparison-ci \
             2>&1 | tee results/placement-comparison-ci/console.log
       - name: Publish job summary
         if: always()

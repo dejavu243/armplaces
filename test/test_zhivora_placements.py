@@ -20,16 +20,22 @@ class ZhivoraPlacementTests(unittest.TestCase):
             far = rank_tournament_far(names, case['pairs'])
             self.assertEqual(far['places'], {name: place for place, name in enumerate(case['far_order'], 1)})
         # At N=16 a two-win athlete who lost to second place beats another
-        # two-win athlete who lost to fourth place in the requested top-four mode.
+        # two-win athlete who lost to fourth place in the optional top-four mode.
         case = cases[1]
-        four = rank_tournament_zhivora({who: str(who) for who in case['draw']}, case['pairs'])
+        names = {who: str(who) for who in case['draw']}
+        four = rank_tournament_zhivora(names, case['pairs'], fixed_top=4)
         self.assertEqual((four['places']['5'], four['places']['10']), (6, 7))
         self.assertNotEqual(case['zhivora_four_order'], case['zhivora_six_order'])
+        default = rank_tournament_zhivora(names, case['pairs'])
+        self.assertEqual(default['places'], {name: place for place, name in enumerate(case['zhivora_six_order'], 1)})
+        self.assertEqual(len(default['diagnostics']['fixed_places']), 6)
+        self.assertEqual(min(default['places'][who] for group in default['diagnostics']['groups']
+                             for who in group['order']), 7)
 
     def test_equal_win_and_opponent_places_use_draw_order(self):
         names = {i: name for i, name in enumerate(['a', 'b', 'h', 'g', 'f', 'c', 'e', 'd'])}
         pairs = [(name, 'a') for name in 'bcdefgh']+[(name, 'a') for name in 'cdefghb']
-        ranked = rank_tournament_zhivora(names, pairs)
+        ranked = rank_tournament_zhivora(names, pairs, fixed_top=4)
         self.assertEqual(ranked['places'], {'a': 1, 'b': 2, 'h': 3, 'g': 4,
                                           'f': 5, 'c': 6, 'e': 7, 'd': 8})
         self.assertEqual(ranked['diagnostics']['groups'][0]['order'], ['f', 'c', 'e', 'd'])
@@ -43,7 +49,7 @@ class ZhivoraPlacementTests(unittest.TestCase):
                                     grin_tour=True, grin_cycle_score=True)
                 ranked = simulate(config, 'elo-tire', ratings, draw, repeat,
                                   grin_tour=True, grin_cycle_score=True,
-                                  far_tour=True, zhivora_tour=True)
+                                  far_tour=True, zhivora_tour=True, zhivora_fixed_top=4)
                 self.assertEqual(original['bouts'], ranked['bouts'])
                 self.assertEqual(original['new_ratings'], ranked['new_ratings'])
                 self.assertEqual(original['grin_tour'], ranked['grin_tour'])
@@ -54,8 +60,9 @@ class ZhivoraPlacementTests(unittest.TestCase):
                         if place <= 3:
                             self.assertEqual(ranked[method]['places'][str(who)], place)
                 if n in (1, 2, 3, 4, 8, 16, 32):
-                    simulate(config, 'elo-tire', ratings, draw, repeat,
-                             far_tour=True, zhivora_tour=True, zhivora_fixed_top=6)
+                    pascal = simulate(config, 'elo-tire', ratings, draw, repeat,
+                                      far_tour=True, zhivora_tour=True)
+                    self.assertEqual(pascal['zhivora_tour']['diagnostics']['fixed_top'], 6)
 
     def test_reset_and_invalid_or_incomplete_input(self):
         self.assertEqual(rank_tournament_zhivora({0: 'a', 1: 'b'},
