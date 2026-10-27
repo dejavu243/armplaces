@@ -21,7 +21,10 @@ from armplaces.topological_sort import (get_places, get_tournament_dict,
                                         standard_graph_pass)
 from .core import Config, MODELS, elo_probability, generate_field, validate_result
 from .experiments import rank_metrics, require_finite
-from .place_statistics import PLACE_FIELDS, RANKING_NAMES
+from .place_statistics import PLACE_FIELDS, RANKING_NAMES, ALL_RANKING_NAMES
+from .placement_verification import (independent_metrics, verify_new_rankings,
+                                     verify_metric_details, verify_paired_comparisons,
+                                     verify_metrics_csv)
 
 
 def verify_bout_model(result, config, schema):
@@ -56,7 +59,7 @@ def verify_bout_model(result, config, schema):
                 fatigue[b] += load
             played[a] += 1
             played[b] += 1
-        if schema == 5:
+        if schema >= 5:
             for side, who in sides:
                 for when, state in (('before', before), ('after', fatigue)):
                     saved = bout[f'fatigue_{when}_{side}']
@@ -239,8 +242,10 @@ def verify_artifacts(directory: Path | str):
     manifest = json.loads((directory/'config.json').read_text())
     summary = json.loads((directory/'summary.json').read_text())
     schema = manifest.get('schema_version')
-    if schema not in (4, 5):
-        raise ValueError('Expected artifact schema 4 or 5')
+    if schema not in (4, 5, 6):
+        raise ValueError('Expected artifact schema 4, 5 or 6')
+    ranking_names = ALL_RANKING_NAMES if schema == 6 else RANKING_NAMES
+    measure = independent_metrics if schema == 6 else rank_metrics
     require_finite(manifest)
     require_finite(summary)
     parameters = dict(manifest['config'])
@@ -253,9 +258,9 @@ def verify_artifacts(directory: Path | str):
             parameters['rating_min'], parameters['rating_max'] = manifest['rating_bounds']
     config = Config(**parameters)
     config.validate()
-    if schema == 5:
+    if schema >= 5:
         bounds = config.rating_bounds()
-        if manifest['rating_bounds'] != (list(bounds) if bounds is not None else None) or manifest['ranking_names'] != RANKING_NAMES:
+        if manifest['rating_bounds'] != (list(bounds) if bounds is not None else None) or manifest['ranking_names'] != ranking_names:
             raise ValueError('Incorrect distribution bounds or ranking names')
     elif config.distribution != 'beta-prime' or 'elo-tire' in manifest['models']:
         raise ValueError('Schema 4 supports only the original models and distribution')
@@ -281,8 +286,18 @@ def verify_artifacts(directory: Path | str):
                       'cycle_activated':0,'cycle_success':0,'cycle_standard_success':0,
                       'cycle_failures':Counter(), 'cycle_subset_grin_tour':[],
                       'cycle_subset_grin_cycle_score':[], 'rating_fallback': 0,
-                      'place_errors': {RANKING_NAMES[name]: [] for name in RANKING_NAMES if manifest[name]}}
+                      'place_errors': {ranking_names[name]: [] for name in ranking_names if manifest[name]}}
               for model in models}
+    if schema == 6:
+        if (any(not isinstance(manifest[name], bool) for name in ranking_names)
+                or isinstance(manifest['zhivora_fixed_top'], bool) or manifest['zhivora_fixed_top'] not in (4, 6)):
+            raise ValueError('Invalid ranking controls')
+        if manifest['zhivora_tour'] and manifest['zhivora_fixed_top'] == 6 and n not in (1, 2, 3, 4, 8, 16, 32):
+            raise ValueError('Unsupported Pascal top-six category')
+        for total in totals.values():
+            total.update(far_tour=[], zhivora_tour=[],
+                         paired_mae={ranking_names[name]: [None]*repeats for name in ranking_names if manifest[name]})
+    expected_metrics = {}
     def group_key(row):
         return int(row['repeat']), row['model']
     fields = {}
@@ -303,7 +318,7 @@ def verify_artifacts(directory: Path | str):
                       'places': {int(row['participant']): int(row['place']) for row in rows},
                       'bouts': []}
             require_finite(result)
-            if schema == 5:
+            if schema >= 5:
                 if key[0] not in fields:
                     fields[key[0]] = generate_field(config, key[0])
                 if (result['ratings'], result['draw']) != fields[key[0]]:
@@ -329,6 +344,14 @@ def verify_artifacts(directory: Path | str):
                         raise ValueError('Inconsistent cycle-score place')
                 elif row['cycle_place']:
                     raise ValueError('Unexpected cycle-score place')
+                if schema == 6:
+                    for internal, prefix in (('far_tour', 'far'), ('zhivora_tour', 'zhivora')):
+                        ranked = result[internal]
+                        if row[prefix+'_status'] != ranked['status'] or row[prefix+'_reason'] != ranked['reason']:
+                            raise ValueError('Inconsistent '+internal+' status')
+                        place = ranked['places'].get(row['participant'])
+                        if (int(row[prefix+'_place']) if row[prefix+'_place'] else None) != place:
+                            raise ValueError('Inconsistent '+internal+' place')
             if n > 1:
                 bout_key, bout_rows = next(bout_groups, (None, ()))
                 if bout_key != key:
@@ -341,13 +364,15 @@ def verify_artifacts(directory: Path | str):
                         bout[field] = int(row[field]) if row[field] else None
                     for field in ('p_a', 'p_start_a', 'effective_a', 'effective_b'):
                         bout[field] = float(row[field]) if row[field] else None
-                    if schema == 5:
+                    if schema >= 5:
                         for field in ('fatigue_before_a', 'fatigue_before_b', 'fatigue_after_a', 'fatigue_after_b'):
                             bout[field] = float(row[field]) if row[field] else None
                     result['bouts'].append(bout)
             validate_result(result)
             verify_bout_model(result, config, schema)
             verify_cycle_diagnostics(result, manifest)
+            if schema == 6:
+                verify_new_rankings(result, manifest)
             changes = [0.]*n
             for bout in result['bouts']:
                 if not bout['technical']:
@@ -363,18 +388,29 @@ def verify_artifacts(directory: Path | str):
                     raise ValueError('Incorrect post-tournament rating')
             total = totals[key[1]]
             total['rating_fallback'] += ranking.get('method') == 'opponent_ratings'
-            if schema == 5:
+            if schema >= 5:
                 # Derive true places independently of the export implementation.
                 true_order = sorted(range(n), key=lambda who: (-result['ratings'][who], who))
-                for internal, method in RANKING_NAMES.items():
+                for internal, method in ranking_names.items():
                     if manifest[internal] and result[internal]['status'] == 'ok':
                         places = result[internal]['places']
                         total['place_errors'][method].append([places[str(who)]-rank
                                                             for rank, who in enumerate(true_order, 1)])
+            if schema == 6:
+                for internal, name in ranking_names.items():
+                    if not manifest[internal]:
+                        continue
+                    ranked = result[internal]
+                    metric = (measure(result['ratings'], {int(k): v for k, v in ranked['places'].items()})
+                              if ranked['status'] == 'ok' else {'mae': None, 'spearman': None})
+                    total['paired_mae'][name][key[0]] = metric['mae']
+                    expected_metrics[key[0], key[1], name] = ranked['status'], metric
+                    if internal in ('far_tour', 'zhivora_tour') and ranked['status'] == 'ok':
+                        total[internal].append(metric)
             total['strongest'] += result['ratings'][result['champion']] == max(result['ratings'])
             total['bracket'].append(rank_metrics(result['ratings'], result['places']))
             if ranking['status'] == 'ok':
-                total['grin_tour'].append(rank_metrics(result['ratings'], {int(k): v for k,v in ranking['places'].items()}))
+                total['grin_tour'].append(measure(result['ratings'], {int(k): v for k,v in ranking['places'].items()}))
             elif ranking['status'] in ('undefined', 'partial'):
                 total[ranking['status']][ranking['reason']] += 1
             if manifest['grin_cycle_score']:
@@ -382,7 +418,7 @@ def verify_artifacts(directory: Path | str):
                 total['cycle_activated']+=activated
                 total['cycle_standard_success']+=not activated and cycle['status']=='ok'
                 if cycle['status']=='ok':
-                    metric=rank_metrics(result['ratings'],{int(k):v for k,v in cycle['places'].items()})
+                    metric=measure(result['ratings'],{int(k):v for k,v in cycle['places'].items()})
                     total['grin_cycle_score'].append(metric)
                     if activated:
                         total['cycle_success']+=1
@@ -390,7 +426,7 @@ def verify_artifacts(directory: Path | str):
                 elif activated:
                     total['cycle_failures'][cycle['reason']]+=1
                 if activated and ranking['status']=='ok':
-                    total['cycle_subset_grin_tour'].append(rank_metrics(
+                    total['cycle_subset_grin_tour'].append(measure(
                         result['ratings'],{int(k):v for k,v in ranking['places'].items()}))
         if next(bout_groups, None) is not None:
             raise ValueError('Unexpected extra bout group')
@@ -398,7 +434,7 @@ def verify_artifacts(directory: Path | str):
         raise ValueError('Missing participant groups')
     for model, item in summary.items():
         total = totals[model]
-        if schema == 5:
+        if schema >= 5:
             if item['rating_fallback'] != total['rating_fallback']:
                 raise ValueError('Incorrect rating-fallback count')
             verify_place_statistics(directory, model, item, total['place_errors'], config)
@@ -415,8 +451,11 @@ def verify_artifacts(directory: Path | str):
                 raise ValueError('Incorrect cycle-score activation counts')
         if item['cycle_failures']!=dict(total['cycle_failures']):
             raise ValueError('Incorrect cycle-score failure reasons')
-        for method in ('bracket', 'grin_tour', 'grin_cycle_score',
-                       'cycle_subset_grin_tour','cycle_subset_grin_cycle_score'):
+        methods = ['bracket', 'grin_tour', 'grin_cycle_score', 'cycle_subset_grin_tour', 'cycle_subset_grin_cycle_score']
+        if schema == 6:
+            methods += ['far_tour', 'zhivora_tour']
+            verify_paired_comparisons(item['paired_comparisons'], total['paired_mae'])
+        for method in methods:
             samples = total[method]
             correlations = [x['spearman'] for x in samples if x['spearman'] is not None]
             if item[method]['samples'] != len(samples) or item[method]['correlation_samples'] != len(correlations):
@@ -428,6 +467,10 @@ def verify_artifacts(directory: Path | str):
                         raise ValueError('Metric without samples must be null')
                 elif actual is None or not isclose(actual, sum(values)/len(values), rel_tol=1e-12, abs_tol=1e-12):
                     raise ValueError('Incorrect aggregate metric')
+            if schema == 6 and method in ranking_names:
+                verify_metric_details(item[method], [sample['mae'] for sample in samples])
+    if schema == 6:
+        verify_metrics_csv(directory, expected_metrics)
     return True
 
 

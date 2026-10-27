@@ -85,6 +85,49 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
+  placement-comparison:
+    name: Placement methods smoke experiment (300 tournaments)
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            pyproject.toml
+      - name: Create project virtual environment
+        run: python -m venv .venv
+      - name: Install runtime dependencies
+        run: .venv/bin/python -m pip install -e .
+      - name: Compare four placement methods and verify artifacts
+        shell: bash
+        run: |
+          mkdir -p results/placement-comparison-ci
+          .venv/bin/python scripts/run_placement_comparison.py \
+            --smoke --zhivora-fixed-top 6 --output results/placement-comparison-ci \
+            2>&1 | tee results/placement-comparison-ci/console.log
+      - name: Publish job summary
+        if: always()
+        shell: bash
+        run: |
+          if test -f results/placement-comparison-ci/batch-report.md; then
+            cat results/placement-comparison-ci/batch-report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload placement comparison artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: placement-methods-seed42
+          path: results/placement-comparison-ci/
+          retention-days: 30
+          if-no-files-found: warn
+
   elo-tire:
     name: Elo-tire smoke experiment (300 tournaments)
     needs: checks
