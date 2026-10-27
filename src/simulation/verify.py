@@ -292,7 +292,7 @@ def verify_artifacts(directory: Path | str):
         if (any(not isinstance(manifest[name], bool) for name in ranking_names)
                 or isinstance(manifest['zhivora_fixed_top'], bool) or manifest['zhivora_fixed_top'] not in (4, 6)):
             raise ValueError('Invalid ranking controls')
-        if manifest['zhivora_tour'] and manifest['zhivora_fixed_top'] == 6 and n not in (1, 2, 3, 4, 8, 16, 32):
+        if manifest['zhivora_tour'] and manifest['zhivora_fixed_top'] == 6 and n not in (1, 2, 3, 4, 8, 16, 22, 32):
             raise ValueError('Unsupported Pascal top-six category')
         for total in totals.values():
             total.update(far_tour=[], zhivora_tour=[],

@@ -59,10 +59,25 @@ class ZhivoraPlacementTests(unittest.TestCase):
                     for who, place in original['places'].items():
                         if place <= 3:
                             self.assertEqual(ranked[method]['places'][str(who)], place)
-                if n in (1, 2, 3, 4, 8, 16, 32):
+                if n in (1, 2, 3, 4, 8, 16, 22, 32):
                     pascal = simulate(config, 'elo-tire', ratings, draw, repeat,
                                       far_tour=True, zhivora_tour=True)
                     self.assertEqual(pascal['zhivora_tour']['diagnostics']['fixed_top'], 6)
+
+    def test_twenty_two_places_and_superfinal(self):
+        config = Config(participants=22, repeats=3, seed=42)
+        for repeat, expected in enumerate(((3, 0, 20, 5, 15, 18),
+                                           (15, 21, 1, 18, 14, 11),
+                                           (1, 6, 9, 18, 12, 17))):
+            ratings, draw = generate_field(config, repeat)
+            result = simulate(config, 'elo-tire', ratings, draw, repeat,
+                              grin_tour=True, grin_cycle_score=True, far_tour=True, zhivora_tour=True)
+            self.assertEqual(result['zhivora_tour']['diagnostics']['fixed_places'],
+                             {str(who): place for place, who in enumerate(expected, 1)})
+            self.assertEqual(result['reset'], repeat == 1)
+            self.assertEqual(sum(not bout['technical'] for bout in result['bouts']), 43 if repeat == 1 else 42)
+            for method in ('far_tour', 'zhivora_tour', 'grin_tour', 'grin_cycle_score'):
+                self.assertEqual(sorted(result[method]['places'].values()), list(range(1, 23)))
 
     def test_reset_and_invalid_or_incomplete_input(self):
         self.assertEqual(rank_tournament_zhivora({0: 'a', 1: 'b'},

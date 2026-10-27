@@ -151,8 +151,8 @@ def run_experiments(config: Config, models, grin_tour: bool, output: Path | str,
     extended = far_tour or zhivora_tour
     if zhivora_tour and (isinstance(zhivora_fixed_top, bool) or zhivora_fixed_top not in (4, 6)):
         raise ValueError('zhivora-fixed-top must be 4 or 6')
-    if zhivora_tour and zhivora_fixed_top == 6 and config.participants not in (1, 2, 3, 4, 8, 16, 32):
-        raise ValueError('Pascal top-six mode requires N=8,16,32 or N<=4')
+    if zhivora_tour and zhivora_fixed_top == 6 and config.participants not in (1, 2, 3, 4, 8, 16, 22, 32):
+        raise ValueError('Pascal top-six mode requires N=8,16,22,32 or N<=4')
     ranking_names = ALL_RANKING_NAMES if extended else RANKING_NAMES
     enabled = {'grin_tour': grin_tour, 'grin_cycle_score': grin_cycle_score,
                'far_tour': far_tour, 'zhivora_tour': zhivora_tour}
