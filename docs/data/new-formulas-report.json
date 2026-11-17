@@ -1,0 +1,1472 @@
+{
+  "categories": [
+    {
+      "distribution": "beta-prime",
+      "participants": 8,
+      "statistics": {
+        "final": {
+          "samples": 1000,
+          "mean_gap": 162.50438200294482,
+          "mean_abs_gap": 192.1859498421826,
+          "median_abs_gap": 164.26154741148378,
+          "p95_abs_gap": 465.80288369872056,
+          "max_abs_gap": 785.104941946522
+        },
+        "superfinal": {
+          "samples": 229,
+          "mean_gap": -5.752332468732185,
+          "mean_abs_gap": 95.14562572842424,
+          "median_abs_gap": 75.77869274698719,
+          "p95_abs_gap": 284.23036575618585,
+          "max_abs_gap": 414.67170403535056
+        },
+        "reset_count": 229,
+        "reset_rate": 0.229
+      },
+      "manifest": {
+        "schema_version": 5,
+        "config": {
+          "participants": 8,
+          "repeats": 1000,
+          "seed": 42,
+          "alpha": 135.1,
+          "beta": 65.2,
+          "scale": 530.0,
+          "dr": 167.0,
+          "k": 160.0,
+          "fatigue_rate": 0.05,
+          "distribution": "beta-prime",
+          "weibull_shape": 2.2,
+          "weibull_scale": 220.0,
+          "weibull_location": 852.0,
+          "rating_min": null,
+          "rating_max": null,
+          "tire_floor": 0.85,
+          "tire_reference": 0.85,
+          "tire_c": 334.0,
+          "tire_bouts": 3,
+          "unbounded_beta_prime": false,
+          "tire_formula": "exponential",
+          "tire_exponent_sign": 1
+        },
+        "models": [
+          "elo-tire"
+        ],
+        "grin_tour": true,
+        "grin_cycle_score": true,
+        "ranking_names": {
+          "grin_tour": "grin-elo",
+          "grin_cycle_score": "grin-cycle"
+        },
+        "rating_bounds": [
+          600.0,
+          1900.0
+        ],
+        "cycle_weights": [
+          0.33,
+          0.33,
+          0.33
+        ],
+        "normalized_cycle_weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "environment": {
+          "python": "3.12.3",
+          "commit": "8096625a67351e9c73b899aa6a590de8306c0da6",
+          "dirty": true,
+          "source_sha256": "0206317f6b9b3046044b66f2ef7f7e15e2245464fd62ae79696de168437f3e7e",
+          "dependencies": {
+            "armplaces": "0.2.0",
+            "contourpy": "1.4.0",
+            "cycler": "0.12.1",
+            "fonttools": "4.65.0",
+            "kiwisolver": "1.5.1",
+            "matplotlib": "3.10.1",
+            "networkx": "3.4.2",
+            "numpy": "2.2.6",
+            "packaging": "26.3",
+            "pillow": "12.3.0",
+            "pip": "24.0",
+            "pyparsing": "3.3.3",
+            "python-dateutil": "2.9.0.post0",
+            "ruff": "0.11.13",
+            "scipy": "1.15.3",
+            "six": "1.17.0"
+          }
+        },
+        "status": "complete"
+      }
+    },
+    {
+      "distribution": "beta-prime",
+      "participants": 16,
+      "statistics": {
+        "final": {
+          "samples": 1000,
+          "mean_gap": 162.5999074036025,
+          "mean_abs_gap": 199.0137041634398,
+          "median_abs_gap": 166.54028632888708,
+          "p95_abs_gap": 477.78714481722227,
+          "max_abs_gap": 691.6390903175476
+        },
+        "superfinal": {
+          "samples": 239,
+          "mean_gap": -28.111507323678023,
+          "mean_abs_gap": 91.50997902354565,
+          "median_abs_gap": 68.24053269502167,
+          "p95_abs_gap": 266.9338015887964,
+          "max_abs_gap": 397.12128230148414
+        },
+        "reset_count": 239,
+        "reset_rate": 0.239
+      },
+      "manifest": {
+        "schema_version": 5,
+        "config": {
+          "participants": 16,
+          "repeats": 1000,
+          "seed": 42,
+          "alpha": 135.1,
+          "beta": 65.2,
+          "scale": 530.0,
+          "dr": 167.0,
+          "k": 160.0,
+          "fatigue_rate": 0.05,
+          "distribution": "beta-prime",
+          "weibull_shape": 2.2,
+          "weibull_scale": 220.0,
+          "weibull_location": 852.0,
+          "rating_min": null,
+          "rating_max": null,
+          "tire_floor": 0.85,
+          "tire_reference": 0.85,
+          "tire_c": 334.0,
+          "tire_bouts": 3,
+          "unbounded_beta_prime": false,
+          "tire_formula": "exponential",
+          "tire_exponent_sign": 1
+        },
+        "models": [
+          "elo-tire"
+        ],
+        "grin_tour": true,
+        "grin_cycle_score": true,
+        "ranking_names": {
+          "grin_tour": "grin-elo",
+          "grin_cycle_score": "grin-cycle"
+        },
+        "rating_bounds": [
+          600.0,
+          1900.0
+        ],
+        "cycle_weights": [
+          0.33,
+          0.33,
+          0.33
+        ],
+        "normalized_cycle_weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "environment": {
+          "python": "3.12.3",
+          "commit": "8096625a67351e9c73b899aa6a590de8306c0da6",
+          "dirty": true,
+          "source_sha256": "0206317f6b9b3046044b66f2ef7f7e15e2245464fd62ae79696de168437f3e7e",
+          "dependencies": {
+            "armplaces": "0.2.0",
+            "contourpy": "1.4.0",
+            "cycler": "0.12.1",
+            "fonttools": "4.65.0",
+            "kiwisolver": "1.5.1",
+            "matplotlib": "3.10.1",
+            "networkx": "3.4.2",
+            "numpy": "2.2.6",
+            "packaging": "26.3",
+            "pillow": "12.3.0",
+            "pip": "24.0",
+            "pyparsing": "3.3.3",
+            "python-dateutil": "2.9.0.post0",
+            "ruff": "0.11.13",
+            "scipy": "1.15.3",
+            "six": "1.17.0"
+          }
+        },
+        "status": "complete"
+      }
+    },
+    {
+      "distribution": "beta-prime",
+      "participants": 22,
+      "statistics": {
+        "final": {
+          "samples": 1000,
+          "mean_gap": 168.92892422154043,
+          "mean_abs_gap": 204.26783373879655,
+          "median_abs_gap": 176.3347360875423,
+          "p95_abs_gap": 480.28359439485473,
+          "max_abs_gap": 687.7427807916984
+        },
+        "superfinal": {
+          "samples": 218,
+          "mean_gap": -20.30211240169102,
+          "mean_abs_gap": 110.28934301912555,
+          "median_abs_gap": 86.20408399971893,
+          "p95_abs_gap": 283.7295574159181,
+          "max_abs_gap": 630.0650969211363
+        },
+        "reset_count": 218,
+        "reset_rate": 0.218
+      },
+      "manifest": {
+        "schema_version": 5,
+        "config": {
+          "participants": 22,
+          "repeats": 1000,
+          "seed": 42,
+          "alpha": 135.1,
+          "beta": 65.2,
+          "scale": 530.0,
+          "dr": 167.0,
+          "k": 160.0,
+          "fatigue_rate": 0.05,
+          "distribution": "beta-prime",
+          "weibull_shape": 2.2,
+          "weibull_scale": 220.0,
+          "weibull_location": 852.0,
+          "rating_min": null,
+          "rating_max": null,
+          "tire_floor": 0.85,
+          "tire_reference": 0.85,
+          "tire_c": 334.0,
+          "tire_bouts": 3,
+          "unbounded_beta_prime": false,
+          "tire_formula": "exponential",
+          "tire_exponent_sign": 1
+        },
+        "models": [
+          "elo-tire"
+        ],
+        "grin_tour": true,
+        "grin_cycle_score": true,
+        "ranking_names": {
+          "grin_tour": "grin-elo",
+          "grin_cycle_score": "grin-cycle"
+        },
+        "rating_bounds": [
+          600.0,
+          1900.0
+        ],
+        "cycle_weights": [
+          0.33,
+          0.33,
+          0.33
+        ],
+        "normalized_cycle_weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "environment": {
+          "python": "3.12.3",
+          "commit": "8096625a67351e9c73b899aa6a590de8306c0da6",
+          "dirty": true,
+          "source_sha256": "0206317f6b9b3046044b66f2ef7f7e15e2245464fd62ae79696de168437f3e7e",
+          "dependencies": {
+            "armplaces": "0.2.0",
+            "contourpy": "1.4.0",
+            "cycler": "0.12.1",
+            "fonttools": "4.65.0",
+            "kiwisolver": "1.5.1",
+            "matplotlib": "3.10.1",
+            "networkx": "3.4.2",
+            "numpy": "2.2.6",
+            "packaging": "26.3",
+            "pillow": "12.3.0",
+            "pip": "24.0",
+            "pyparsing": "3.3.3",
+            "python-dateutil": "2.9.0.post0",
+            "ruff": "0.11.13",
+            "scipy": "1.15.3",
+            "six": "1.17.0"
+          }
+        },
+        "status": "complete"
+      }
+    },
+    {
+      "distribution": "beta-prime",
+      "participants": 32,
+      "statistics": {
+        "final": {
+          "samples": 1000,
+          "mean_gap": 160.92439452103687,
+          "mean_abs_gap": 201.48980960579706,
+          "median_abs_gap": 173.20601986169004,
+          "p95_abs_gap": 467.3667860494409,
+          "max_abs_gap": 782.2084745466032
+        },
+        "superfinal": {
+          "samples": 239,
+          "mean_gap": -29.09642038558766,
+          "mean_abs_gap": 106.26412774929275,
+          "median_abs_gap": 85.4558628341274,
+          "p95_abs_gap": 295.87996745468774,
+          "max_abs_gap": 544.0224246702305
+        },
+        "reset_count": 239,
+        "reset_rate": 0.239
+      },
+      "manifest": {
+        "schema_version": 5,
+        "config": {
+          "participants": 32,
+          "repeats": 1000,
+          "seed": 42,
+          "alpha": 135.1,
+          "beta": 65.2,
+          "scale": 530.0,
+          "dr": 167.0,
+          "k": 160.0,
+          "fatigue_rate": 0.05,
+          "distribution": "beta-prime",
+          "weibull_shape": 2.2,
+          "weibull_scale": 220.0,
+          "weibull_location": 852.0,
+          "rating_min": null,
+          "rating_max": null,
+          "tire_floor": 0.85,
+          "tire_reference": 0.85,
+          "tire_c": 334.0,
+          "tire_bouts": 3,
+          "unbounded_beta_prime": false,
+          "tire_formula": "exponential",
+          "tire_exponent_sign": 1
+        },
+        "models": [
+          "elo-tire"
+        ],
+        "grin_tour": true,
+        "grin_cycle_score": true,
+        "ranking_names": {
+          "grin_tour": "grin-elo",
+          "grin_cycle_score": "grin-cycle"
+        },
+        "rating_bounds": [
+          600.0,
+          1900.0
+        ],
+        "cycle_weights": [
+          0.33,
+          0.33,
+          0.33
+        ],
+        "normalized_cycle_weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "environment": {
+          "python": "3.12.3",
+          "commit": "8096625a67351e9c73b899aa6a590de8306c0da6",
+          "dirty": true,
+          "source_sha256": "0206317f6b9b3046044b66f2ef7f7e15e2245464fd62ae79696de168437f3e7e",
+          "dependencies": {
+            "armplaces": "0.2.0",
+            "contourpy": "1.4.0",
+            "cycler": "0.12.1",
+            "fonttools": "4.65.0",
+            "kiwisolver": "1.5.1",
+            "matplotlib": "3.10.1",
+            "networkx": "3.4.2",
+            "numpy": "2.2.6",
+            "packaging": "26.3",
+            "pillow": "12.3.0",
+            "pip": "24.0",
+            "pyparsing": "3.3.3",
+            "python-dateutil": "2.9.0.post0",
+            "ruff": "0.11.13",
+            "scipy": "1.15.3",
+            "six": "1.17.0"
+          }
+        },
+        "status": "complete"
+      }
+    },
+    {
+      "distribution": "weibull",
+      "participants": 8,
+      "statistics": {
+        "final": {
+          "samples": 1000,
+          "mean_gap": 105.6531842152143,
+          "mean_abs_gap": 135.44155920810007,
+          "median_abs_gap": 114.45108393252667,
+          "p95_abs_gap": 326.9504860685262,
+          "max_abs_gap": 497.9658732063383
+        },
+        "superfinal": {
+          "samples": 314,
+          "mean_gap": 4.920095210573542,
+          "mean_abs_gap": 81.33456603006539,
+          "median_abs_gap": 67.52525472583517,
+          "p95_abs_gap": 196.21338648284578,
+          "max_abs_gap": 351.31003018330716
+        },
+        "reset_count": 314,
+        "reset_rate": 0.314
+      },
+      "manifest": {
+        "schema_version": 5,
+        "config": {
+          "participants": 8,
+          "repeats": 1000,
+          "seed": 42,
+          "alpha": 135.1,
+          "beta": 65.2,
+          "scale": 530.0,
+          "dr": 167.0,
+          "k": 160.0,
+          "fatigue_rate": 0.05,
+          "distribution": "weibull",
+          "weibull_shape": 2.2,
+          "weibull_scale": 220.0,
+          "weibull_location": 852.0,
+          "rating_min": null,
+          "rating_max": null,
+          "tire_floor": 0.85,
+          "tire_reference": 0.85,
+          "tire_c": 334.0,
+          "tire_bouts": 3,
+          "unbounded_beta_prime": false,
+          "tire_formula": "exponential",
+          "tire_exponent_sign": 1
+        },
+        "models": [
+          "elo-tire"
+        ],
+        "grin_tour": true,
+        "grin_cycle_score": true,
+        "ranking_names": {
+          "grin_tour": "grin-elo",
+          "grin_cycle_score": "grin-cycle"
+        },
+        "rating_bounds": null,
+        "cycle_weights": [
+          0.33,
+          0.33,
+          0.33
+        ],
+        "normalized_cycle_weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "environment": {
+          "python": "3.12.3",
+          "commit": "8096625a67351e9c73b899aa6a590de8306c0da6",
+          "dirty": true,
+          "source_sha256": "0206317f6b9b3046044b66f2ef7f7e15e2245464fd62ae79696de168437f3e7e",
+          "dependencies": {
+            "armplaces": "0.2.0",
+            "contourpy": "1.4.0",
+            "cycler": "0.12.1",
+            "fonttools": "4.65.0",
+            "kiwisolver": "1.5.1",
+            "matplotlib": "3.10.1",
+            "networkx": "3.4.2",
+            "numpy": "2.2.6",
+            "packaging": "26.3",
+            "pillow": "12.3.0",
+            "pip": "24.0",
+            "pyparsing": "3.3.3",
+            "python-dateutil": "2.9.0.post0",
+            "ruff": "0.11.13",
+            "scipy": "1.15.3",
+            "six": "1.17.0"
+          }
+        },
+        "status": "complete"
+      }
+    },
+    {
+      "distribution": "weibull",
+      "participants": 16,
+      "statistics": {
+        "final": {
+          "samples": 1000,
+          "mean_gap": 104.25288784603556,
+          "mean_abs_gap": 143.11082855603763,
+          "median_abs_gap": 125.43863857203382,
+          "p95_abs_gap": 334.85565653106977,
+          "max_abs_gap": 626.9938007781143
+        },
+        "superfinal": {
+          "samples": 281,
+          "mean_gap": -17.952243008694385,
+          "mean_abs_gap": 96.26847179982687,
+          "median_abs_gap": 77.67503472767748,
+          "p95_abs_gap": 250.6668521287769,
+          "max_abs_gap": 401.24914556324245
+        },
+        "reset_count": 281,
+        "reset_rate": 0.281
+      },
+      "manifest": {
+        "schema_version": 5,
+        "config": {
+          "participants": 16,
+          "repeats": 1000,
+          "seed": 42,
+          "alpha": 135.1,
+          "beta": 65.2,
+          "scale": 530.0,
+          "dr": 167.0,
+          "k": 160.0,
+          "fatigue_rate": 0.05,
+          "distribution": "weibull",
+          "weibull_shape": 2.2,
+          "weibull_scale": 220.0,
+          "weibull_location": 852.0,
+          "rating_min": null,
+          "rating_max": null,
+          "tire_floor": 0.85,
+          "tire_reference": 0.85,
+          "tire_c": 334.0,
+          "tire_bouts": 3,
+          "unbounded_beta_prime": false,
+          "tire_formula": "exponential",
+          "tire_exponent_sign": 1
+        },
+        "models": [
+          "elo-tire"
+        ],
+        "grin_tour": true,
+        "grin_cycle_score": true,
+        "ranking_names": {
+          "grin_tour": "grin-elo",
+          "grin_cycle_score": "grin-cycle"
+        },
+        "rating_bounds": null,
+        "cycle_weights": [
+          0.33,
+          0.33,
+          0.33
+        ],
+        "normalized_cycle_weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "environment": {
+          "python": "3.12.3",
+          "commit": "8096625a67351e9c73b899aa6a590de8306c0da6",
+          "dirty": true,
+          "source_sha256": "0206317f6b9b3046044b66f2ef7f7e15e2245464fd62ae79696de168437f3e7e",
+          "dependencies": {
+            "armplaces": "0.2.0",
+            "contourpy": "1.4.0",
+            "cycler": "0.12.1",
+            "fonttools": "4.65.0",
+            "kiwisolver": "1.5.1",
+            "matplotlib": "3.10.1",
+            "networkx": "3.4.2",
+            "numpy": "2.2.6",
+            "packaging": "26.3",
+            "pillow": "12.3.0",
+            "pip": "24.0",
+            "pyparsing": "3.3.3",
+            "python-dateutil": "2.9.0.post0",
+            "ruff": "0.11.13",
+            "scipy": "1.15.3",
+            "six": "1.17.0"
+          }
+        },
+        "status": "complete"
+      }
+    },
+    {
+      "distribution": "weibull",
+      "participants": 22,
+      "statistics": {
+        "final": {
+          "samples": 1000,
+          "mean_gap": 110.72953155102377,
+          "mean_abs_gap": 146.70326543622156,
+          "median_abs_gap": 124.14142574336404,
+          "p95_abs_gap": 354.9029445419625,
+          "max_abs_gap": 686.9959829884451
+        },
+        "superfinal": {
+          "samples": 275,
+          "mean_gap": -16.304889292680077,
+          "mean_abs_gap": 87.65530600522163,
+          "median_abs_gap": 73.06957976686147,
+          "p95_abs_gap": 246.20600312468025,
+          "max_abs_gap": 399.63931697638066
+        },
+        "reset_count": 275,
+        "reset_rate": 0.275
+      },
+      "manifest": {
+        "schema_version": 5,
+        "config": {
+          "participants": 22,
+          "repeats": 1000,
+          "seed": 42,
+          "alpha": 135.1,
+          "beta": 65.2,
+          "scale": 530.0,
+          "dr": 167.0,
+          "k": 160.0,
+          "fatigue_rate": 0.05,
+          "distribution": "weibull",
+          "weibull_shape": 2.2,
+          "weibull_scale": 220.0,
+          "weibull_location": 852.0,
+          "rating_min": null,
+          "rating_max": null,
+          "tire_floor": 0.85,
+          "tire_reference": 0.85,
+          "tire_c": 334.0,
+          "tire_bouts": 3,
+          "unbounded_beta_prime": false,
+          "tire_formula": "exponential",
+          "tire_exponent_sign": 1
+        },
+        "models": [
+          "elo-tire"
+        ],
+        "grin_tour": true,
+        "grin_cycle_score": true,
+        "ranking_names": {
+          "grin_tour": "grin-elo",
+          "grin_cycle_score": "grin-cycle"
+        },
+        "rating_bounds": null,
+        "cycle_weights": [
+          0.33,
+          0.33,
+          0.33
+        ],
+        "normalized_cycle_weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "environment": {
+          "python": "3.12.3",
+          "commit": "8096625a67351e9c73b899aa6a590de8306c0da6",
+          "dirty": true,
+          "source_sha256": "0206317f6b9b3046044b66f2ef7f7e15e2245464fd62ae79696de168437f3e7e",
+          "dependencies": {
+            "armplaces": "0.2.0",
+            "contourpy": "1.4.0",
+            "cycler": "0.12.1",
+            "fonttools": "4.65.0",
+            "kiwisolver": "1.5.1",
+            "matplotlib": "3.10.1",
+            "networkx": "3.4.2",
+            "numpy": "2.2.6",
+            "packaging": "26.3",
+            "pillow": "12.3.0",
+            "pip": "24.0",
+            "pyparsing": "3.3.3",
+            "python-dateutil": "2.9.0.post0",
+            "ruff": "0.11.13",
+            "scipy": "1.15.3",
+            "six": "1.17.0"
+          }
+        },
+        "status": "complete"
+      }
+    },
+    {
+      "distribution": "weibull",
+      "participants": 32,
+      "statistics": {
+        "final": {
+          "samples": 1000,
+          "mean_gap": 109.57952372509126,
+          "mean_abs_gap": 146.15893469874922,
+          "median_abs_gap": 122.13547856349766,
+          "p95_abs_gap": 363.50898907904644,
+          "max_abs_gap": 571.2105838940547
+        },
+        "superfinal": {
+          "samples": 271,
+          "mean_gap": -21.27305619982193,
+          "mean_abs_gap": 87.57795316556306,
+          "median_abs_gap": 63.292337975868804,
+          "p95_abs_gap": 235.66779210825456,
+          "max_abs_gap": 410.34687202316036
+        },
+        "reset_count": 271,
+        "reset_rate": 0.271
+      },
+      "manifest": {
+        "schema_version": 5,
+        "config": {
+          "participants": 32,
+          "repeats": 1000,
+          "seed": 42,
+          "alpha": 135.1,
+          "beta": 65.2,
+          "scale": 530.0,
+          "dr": 167.0,
+          "k": 160.0,
+          "fatigue_rate": 0.05,
+          "distribution": "weibull",
+          "weibull_shape": 2.2,
+          "weibull_scale": 220.0,
+          "weibull_location": 852.0,
+          "rating_min": null,
+          "rating_max": null,
+          "tire_floor": 0.85,
+          "tire_reference": 0.85,
+          "tire_c": 334.0,
+          "tire_bouts": 3,
+          "unbounded_beta_prime": false,
+          "tire_formula": "exponential",
+          "tire_exponent_sign": 1
+        },
+        "models": [
+          "elo-tire"
+        ],
+        "grin_tour": true,
+        "grin_cycle_score": true,
+        "ranking_names": {
+          "grin_tour": "grin-elo",
+          "grin_cycle_score": "grin-cycle"
+        },
+        "rating_bounds": null,
+        "cycle_weights": [
+          0.33,
+          0.33,
+          0.33
+        ],
+        "normalized_cycle_weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "environment": {
+          "python": "3.12.3",
+          "commit": "8096625a67351e9c73b899aa6a590de8306c0da6",
+          "dirty": true,
+          "source_sha256": "0206317f6b9b3046044b66f2ef7f7e15e2245464fd62ae79696de168437f3e7e",
+          "dependencies": {
+            "armplaces": "0.2.0",
+            "contourpy": "1.4.0",
+            "cycler": "0.12.1",
+            "fonttools": "4.65.0",
+            "kiwisolver": "1.5.1",
+            "matplotlib": "3.10.1",
+            "networkx": "3.4.2",
+            "numpy": "2.2.6",
+            "packaging": "26.3",
+            "pillow": "12.3.0",
+            "pip": "24.0",
+            "pyparsing": "3.3.3",
+            "python-dateutil": "2.9.0.post0",
+            "ruff": "0.11.13",
+            "scipy": "1.15.3",
+            "six": "1.17.0"
+          }
+        },
+        "status": "complete"
+      }
+    },
+    {
+      "distribution": "uniform",
+      "participants": 8,
+      "statistics": {
+        "final": {
+          "samples": 1000,
+          "mean_gap": 182.3826505837404,
+          "mean_abs_gap": 206.22248975114996,
+          "median_abs_gap": 175.2311878372135,
+          "p95_abs_gap": 502.1361293398301,
+          "max_abs_gap": 920.9253838543331
+        },
+        "superfinal": {
+          "samples": 222,
+          "mean_gap": -0.8233833713722708,
+          "mean_abs_gap": 91.54667386514292,
+          "median_abs_gap": 77.25645368692676,
+          "p95_abs_gap": 233.35756221322245,
+          "max_abs_gap": 353.4638724005649
+        },
+        "reset_count": 222,
+        "reset_rate": 0.222
+      },
+      "manifest": {
+        "schema_version": 5,
+        "config": {
+          "participants": 8,
+          "repeats": 1000,
+          "seed": 42,
+          "alpha": 135.1,
+          "beta": 65.2,
+          "scale": 530.0,
+          "dr": 167.0,
+          "k": 160.0,
+          "fatigue_rate": 0.05,
+          "distribution": "uniform",
+          "weibull_shape": 2.2,
+          "weibull_scale": 220.0,
+          "weibull_location": 852.0,
+          "rating_min": null,
+          "rating_max": null,
+          "tire_floor": 0.85,
+          "tire_reference": 0.85,
+          "tire_c": 334.0,
+          "tire_bouts": 3,
+          "unbounded_beta_prime": false,
+          "tire_formula": "exponential",
+          "tire_exponent_sign": 1
+        },
+        "models": [
+          "elo-tire"
+        ],
+        "grin_tour": true,
+        "grin_cycle_score": true,
+        "ranking_names": {
+          "grin_tour": "grin-elo",
+          "grin_cycle_score": "grin-cycle"
+        },
+        "rating_bounds": [
+          600.0,
+          1900.0
+        ],
+        "cycle_weights": [
+          0.33,
+          0.33,
+          0.33
+        ],
+        "normalized_cycle_weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "environment": {
+          "python": "3.12.3",
+          "commit": "8096625a67351e9c73b899aa6a590de8306c0da6",
+          "dirty": true,
+          "source_sha256": "0206317f6b9b3046044b66f2ef7f7e15e2245464fd62ae79696de168437f3e7e",
+          "dependencies": {
+            "armplaces": "0.2.0",
+            "contourpy": "1.4.0",
+            "cycler": "0.12.1",
+            "fonttools": "4.65.0",
+            "kiwisolver": "1.5.1",
+            "matplotlib": "3.10.1",
+            "networkx": "3.4.2",
+            "numpy": "2.2.6",
+            "packaging": "26.3",
+            "pillow": "12.3.0",
+            "pip": "24.0",
+            "pyparsing": "3.3.3",
+            "python-dateutil": "2.9.0.post0",
+            "ruff": "0.11.13",
+            "scipy": "1.15.3",
+            "six": "1.17.0"
+          }
+        },
+        "status": "complete"
+      }
+    },
+    {
+      "distribution": "uniform",
+      "participants": 16,
+      "statistics": {
+        "final": {
+          "samples": 1000,
+          "mean_gap": 130.80921055287448,
+          "mean_abs_gap": 162.57822611757922,
+          "median_abs_gap": 138.138160372759,
+          "p95_abs_gap": 400.28938453362656,
+          "max_abs_gap": 724.2773867410951
+        },
+        "superfinal": {
+          "samples": 251,
+          "mean_gap": -11.192370613140925,
+          "mean_abs_gap": 88.61253247698221,
+          "median_abs_gap": 69.56324574868222,
+          "p95_abs_gap": 208.83202823998658,
+          "max_abs_gap": 642.4490523448073
+        },
+        "reset_count": 251,
+        "reset_rate": 0.251
+      },
+      "manifest": {
+        "schema_version": 5,
+        "config": {
+          "participants": 16,
+          "repeats": 1000,
+          "seed": 42,
+          "alpha": 135.1,
+          "beta": 65.2,
+          "scale": 530.0,
+          "dr": 167.0,
+          "k": 160.0,
+          "fatigue_rate": 0.05,
+          "distribution": "uniform",
+          "weibull_shape": 2.2,
+          "weibull_scale": 220.0,
+          "weibull_location": 852.0,
+          "rating_min": null,
+          "rating_max": null,
+          "tire_floor": 0.85,
+          "tire_reference": 0.85,
+          "tire_c": 334.0,
+          "tire_bouts": 3,
+          "unbounded_beta_prime": false,
+          "tire_formula": "exponential",
+          "tire_exponent_sign": 1
+        },
+        "models": [
+          "elo-tire"
+        ],
+        "grin_tour": true,
+        "grin_cycle_score": true,
+        "ranking_names": {
+          "grin_tour": "grin-elo",
+          "grin_cycle_score": "grin-cycle"
+        },
+        "rating_bounds": [
+          600.0,
+          1900.0
+        ],
+        "cycle_weights": [
+          0.33,
+          0.33,
+          0.33
+        ],
+        "normalized_cycle_weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "environment": {
+          "python": "3.12.3",
+          "commit": "8096625a67351e9c73b899aa6a590de8306c0da6",
+          "dirty": true,
+          "source_sha256": "0206317f6b9b3046044b66f2ef7f7e15e2245464fd62ae79696de168437f3e7e",
+          "dependencies": {
+            "armplaces": "0.2.0",
+            "contourpy": "1.4.0",
+            "cycler": "0.12.1",
+            "fonttools": "4.65.0",
+            "kiwisolver": "1.5.1",
+            "matplotlib": "3.10.1",
+            "networkx": "3.4.2",
+            "numpy": "2.2.6",
+            "packaging": "26.3",
+            "pillow": "12.3.0",
+            "pip": "24.0",
+            "pyparsing": "3.3.3",
+            "python-dateutil": "2.9.0.post0",
+            "ruff": "0.11.13",
+            "scipy": "1.15.3",
+            "six": "1.17.0"
+          }
+        },
+        "status": "complete"
+      }
+    },
+    {
+      "distribution": "uniform",
+      "participants": 22,
+      "statistics": {
+        "final": {
+          "samples": 1000,
+          "mean_gap": 119.98292619655211,
+          "mean_abs_gap": 150.83133686888206,
+          "median_abs_gap": 136.57241573447777,
+          "p95_abs_gap": 347.36374519428625,
+          "max_abs_gap": 619.7986681151501
+        },
+        "superfinal": {
+          "samples": 259,
+          "mean_gap": -7.366241698552211,
+          "mean_abs_gap": 89.35095981117531,
+          "median_abs_gap": 71.21166914372998,
+          "p95_abs_gap": 216.93044198352402,
+          "max_abs_gap": 345.36389237559683
+        },
+        "reset_count": 259,
+        "reset_rate": 0.259
+      },
+      "manifest": {
+        "schema_version": 5,
+        "config": {
+          "participants": 22,
+          "repeats": 1000,
+          "seed": 42,
+          "alpha": 135.1,
+          "beta": 65.2,
+          "scale": 530.0,
+          "dr": 167.0,
+          "k": 160.0,
+          "fatigue_rate": 0.05,
+          "distribution": "uniform",
+          "weibull_shape": 2.2,
+          "weibull_scale": 220.0,
+          "weibull_location": 852.0,
+          "rating_min": null,
+          "rating_max": null,
+          "tire_floor": 0.85,
+          "tire_reference": 0.85,
+          "tire_c": 334.0,
+          "tire_bouts": 3,
+          "unbounded_beta_prime": false,
+          "tire_formula": "exponential",
+          "tire_exponent_sign": 1
+        },
+        "models": [
+          "elo-tire"
+        ],
+        "grin_tour": true,
+        "grin_cycle_score": true,
+        "ranking_names": {
+          "grin_tour": "grin-elo",
+          "grin_cycle_score": "grin-cycle"
+        },
+        "rating_bounds": [
+          600.0,
+          1900.0
+        ],
+        "cycle_weights": [
+          0.33,
+          0.33,
+          0.33
+        ],
+        "normalized_cycle_weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "environment": {
+          "python": "3.12.3",
+          "commit": "8096625a67351e9c73b899aa6a590de8306c0da6",
+          "dirty": true,
+          "source_sha256": "0206317f6b9b3046044b66f2ef7f7e15e2245464fd62ae79696de168437f3e7e",
+          "dependencies": {
+            "armplaces": "0.2.0",
+            "contourpy": "1.4.0",
+            "cycler": "0.12.1",
+            "fonttools": "4.65.0",
+            "kiwisolver": "1.5.1",
+            "matplotlib": "3.10.1",
+            "networkx": "3.4.2",
+            "numpy": "2.2.6",
+            "packaging": "26.3",
+            "pillow": "12.3.0",
+            "pip": "24.0",
+            "pyparsing": "3.3.3",
+            "python-dateutil": "2.9.0.post0",
+            "ruff": "0.11.13",
+            "scipy": "1.15.3",
+            "six": "1.17.0"
+          }
+        },
+        "status": "complete"
+      }
+    },
+    {
+      "distribution": "uniform",
+      "participants": 32,
+      "statistics": {
+        "final": {
+          "samples": 1000,
+          "mean_gap": 108.01237693646435,
+          "mean_abs_gap": 140.71201410138892,
+          "median_abs_gap": 126.00513602644196,
+          "p95_abs_gap": 323.7075938721156,
+          "max_abs_gap": 533.5233179871134
+        },
+        "superfinal": {
+          "samples": 263,
+          "mean_gap": -13.711355600628119,
+          "mean_abs_gap": 89.57528384237241,
+          "median_abs_gap": 67.41595822693944,
+          "p95_abs_gap": 239.5114519886816,
+          "max_abs_gap": 367.847020152446
+        },
+        "reset_count": 263,
+        "reset_rate": 0.263
+      },
+      "manifest": {
+        "schema_version": 5,
+        "config": {
+          "participants": 32,
+          "repeats": 1000,
+          "seed": 42,
+          "alpha": 135.1,
+          "beta": 65.2,
+          "scale": 530.0,
+          "dr": 167.0,
+          "k": 160.0,
+          "fatigue_rate": 0.05,
+          "distribution": "uniform",
+          "weibull_shape": 2.2,
+          "weibull_scale": 220.0,
+          "weibull_location": 852.0,
+          "rating_min": null,
+          "rating_max": null,
+          "tire_floor": 0.85,
+          "tire_reference": 0.85,
+          "tire_c": 334.0,
+          "tire_bouts": 3,
+          "unbounded_beta_prime": false,
+          "tire_formula": "exponential",
+          "tire_exponent_sign": 1
+        },
+        "models": [
+          "elo-tire"
+        ],
+        "grin_tour": true,
+        "grin_cycle_score": true,
+        "ranking_names": {
+          "grin_tour": "grin-elo",
+          "grin_cycle_score": "grin-cycle"
+        },
+        "rating_bounds": [
+          600.0,
+          1900.0
+        ],
+        "cycle_weights": [
+          0.33,
+          0.33,
+          0.33
+        ],
+        "normalized_cycle_weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "environment": {
+          "python": "3.12.3",
+          "commit": "8096625a67351e9c73b899aa6a590de8306c0da6",
+          "dirty": true,
+          "source_sha256": "0206317f6b9b3046044b66f2ef7f7e15e2245464fd62ae79696de168437f3e7e",
+          "dependencies": {
+            "armplaces": "0.2.0",
+            "contourpy": "1.4.0",
+            "cycler": "0.12.1",
+            "fonttools": "4.65.0",
+            "kiwisolver": "1.5.1",
+            "matplotlib": "3.10.1",
+            "networkx": "3.4.2",
+            "numpy": "2.2.6",
+            "packaging": "26.3",
+            "pillow": "12.3.0",
+            "pip": "24.0",
+            "pyparsing": "3.3.3",
+            "python-dateutil": "2.9.0.post0",
+            "ruff": "0.11.13",
+            "scipy": "1.15.3",
+            "six": "1.17.0"
+          }
+        },
+        "status": "complete"
+      }
+    }
+  ],
+  "examples": [
+    {
+      "distribution": "beta-prime",
+      "final": {
+        "repeat": 0,
+        "upper": 3,
+        "lower": 0,
+        "initial_upper": 1648.7599063095463,
+        "initial_lower": 1462.9139151996594,
+        "effective_upper": 1626.441928138708,
+        "effective_lower": 1342.2195547763638,
+        "fatigue_upper": 84.02669196552824,
+        "fatigue_lower": 530.8788505900254,
+        "gap": 284.2223733623441,
+        "abs_gap": 284.2223733623441,
+        "lower_win_probability": 0.019477234894380357,
+        "final_winner": 3,
+        "reset": false,
+        "reset_gap": null,
+        "reset_abs_gap": null,
+        "champion": 3
+      },
+      "manifest": {
+        "schema_version": 5,
+        "config": {
+          "participants": 22,
+          "repeats": 1,
+          "seed": 42,
+          "alpha": 135.1,
+          "beta": 65.2,
+          "scale": 530.0,
+          "dr": 167.0,
+          "k": 160.0,
+          "fatigue_rate": 0.05,
+          "distribution": "beta-prime",
+          "weibull_shape": 2.2,
+          "weibull_scale": 220.0,
+          "weibull_location": 852.0,
+          "rating_min": null,
+          "rating_max": null,
+          "tire_floor": 0.85,
+          "tire_reference": 0.85,
+          "tire_c": 334.0,
+          "tire_bouts": 3,
+          "unbounded_beta_prime": false,
+          "tire_formula": "exponential",
+          "tire_exponent_sign": 1
+        },
+        "models": [
+          "elo-tire"
+        ],
+        "grin_tour": true,
+        "grin_cycle_score": true,
+        "ranking_names": {
+          "grin_tour": "grin-elo",
+          "grin_cycle_score": "grin-cycle"
+        },
+        "rating_bounds": [
+          600.0,
+          1900.0
+        ],
+        "cycle_weights": [
+          0.33,
+          0.33,
+          0.33
+        ],
+        "normalized_cycle_weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "environment": {
+          "python": "3.12.3",
+          "commit": "8096625a67351e9c73b899aa6a590de8306c0da6",
+          "dirty": true,
+          "source_sha256": "0206317f6b9b3046044b66f2ef7f7e15e2245464fd62ae79696de168437f3e7e",
+          "dependencies": {
+            "armplaces": "0.2.0",
+            "contourpy": "1.4.0",
+            "cycler": "0.12.1",
+            "fonttools": "4.65.0",
+            "kiwisolver": "1.5.1",
+            "matplotlib": "3.10.1",
+            "networkx": "3.4.2",
+            "numpy": "2.2.6",
+            "packaging": "26.3",
+            "pillow": "12.3.0",
+            "pip": "24.0",
+            "pyparsing": "3.3.3",
+            "python-dateutil": "2.9.0.post0",
+            "ruff": "0.11.13",
+            "scipy": "1.15.3",
+            "six": "1.17.0"
+          }
+        },
+        "status": "complete"
+      }
+    },
+    {
+      "distribution": "weibull",
+      "final": {
+        "repeat": 0,
+        "upper": 12,
+        "lower": 1,
+        "initial_upper": 1134.3428916503988,
+        "initial_lower": 1175.538793101459,
+        "effective_upper": 958.0847132745668,
+        "effective_lower": 978.2645215510688,
+        "fatigue_upper": 1041.1732137112053,
+        "fatigue_lower": 1132.6013990868073,
+        "gap": -20.179808276502058,
+        "abs_gap": 20.179808276502058,
+        "lower_win_probability": 0.5691141635514398,
+        "final_winner": 12,
+        "reset": false,
+        "reset_gap": null,
+        "reset_abs_gap": null,
+        "champion": 12
+      },
+      "manifest": {
+        "schema_version": 5,
+        "config": {
+          "participants": 22,
+          "repeats": 1,
+          "seed": 42,
+          "alpha": 135.1,
+          "beta": 65.2,
+          "scale": 530.0,
+          "dr": 167.0,
+          "k": 160.0,
+          "fatigue_rate": 0.05,
+          "distribution": "weibull",
+          "weibull_shape": 2.2,
+          "weibull_scale": 220.0,
+          "weibull_location": 852.0,
+          "rating_min": null,
+          "rating_max": null,
+          "tire_floor": 0.85,
+          "tire_reference": 0.85,
+          "tire_c": 334.0,
+          "tire_bouts": 3,
+          "unbounded_beta_prime": false,
+          "tire_formula": "exponential",
+          "tire_exponent_sign": 1
+        },
+        "models": [
+          "elo-tire"
+        ],
+        "grin_tour": true,
+        "grin_cycle_score": true,
+        "ranking_names": {
+          "grin_tour": "grin-elo",
+          "grin_cycle_score": "grin-cycle"
+        },
+        "rating_bounds": null,
+        "cycle_weights": [
+          0.33,
+          0.33,
+          0.33
+        ],
+        "normalized_cycle_weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "environment": {
+          "python": "3.12.3",
+          "commit": "8096625a67351e9c73b899aa6a590de8306c0da6",
+          "dirty": true,
+          "source_sha256": "0206317f6b9b3046044b66f2ef7f7e15e2245464fd62ae79696de168437f3e7e",
+          "dependencies": {
+            "armplaces": "0.2.0",
+            "contourpy": "1.4.0",
+            "cycler": "0.12.1",
+            "fonttools": "4.65.0",
+            "kiwisolver": "1.5.1",
+            "matplotlib": "3.10.1",
+            "networkx": "3.4.2",
+            "numpy": "2.2.6",
+            "packaging": "26.3",
+            "pillow": "12.3.0",
+            "pip": "24.0",
+            "pyparsing": "3.3.3",
+            "python-dateutil": "2.9.0.post0",
+            "ruff": "0.11.13",
+            "scipy": "1.15.3",
+            "six": "1.17.0"
+          }
+        },
+        "status": "complete"
+      }
+    },
+    {
+      "distribution": "uniform",
+      "final": {
+        "repeat": 0,
+        "upper": 5,
+        "lower": 0,
+        "initial_upper": 1868.3090571277828,
+        "initial_lower": 1606.1428631227523,
+        "effective_upper": 1851.664727163382,
+        "effective_lower": 1372.2835411476913,
+        "fatigue_upper": 55.172555459676005,
+        "fatigue_lower": 970.1892334657937,
+        "gap": 479.3811860156907,
+        "abs_gap": 479.3811860156907,
+        "lower_win_probability": 0.0013454552532954356,
+        "final_winner": 5,
+        "reset": false,
+        "reset_gap": null,
+        "reset_abs_gap": null,
+        "champion": 5
+      },
+      "manifest": {
+        "schema_version": 5,
+        "config": {
+          "participants": 22,
+          "repeats": 1,
+          "seed": 42,
+          "alpha": 135.1,
+          "beta": 65.2,
+          "scale": 530.0,
+          "dr": 167.0,
+          "k": 160.0,
+          "fatigue_rate": 0.05,
+          "distribution": "uniform",
+          "weibull_shape": 2.2,
+          "weibull_scale": 220.0,
+          "weibull_location": 852.0,
+          "rating_min": null,
+          "rating_max": null,
+          "tire_floor": 0.85,
+          "tire_reference": 0.85,
+          "tire_c": 334.0,
+          "tire_bouts": 3,
+          "unbounded_beta_prime": false,
+          "tire_formula": "exponential",
+          "tire_exponent_sign": 1
+        },
+        "models": [
+          "elo-tire"
+        ],
+        "grin_tour": true,
+        "grin_cycle_score": true,
+        "ranking_names": {
+          "grin_tour": "grin-elo",
+          "grin_cycle_score": "grin-cycle"
+        },
+        "rating_bounds": [
+          600.0,
+          1900.0
+        ],
+        "cycle_weights": [
+          0.33,
+          0.33,
+          0.33
+        ],
+        "normalized_cycle_weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "environment": {
+          "python": "3.12.3",
+          "commit": "8096625a67351e9c73b899aa6a590de8306c0da6",
+          "dirty": true,
+          "source_sha256": "0206317f6b9b3046044b66f2ef7f7e15e2245464fd62ae79696de168437f3e7e",
+          "dependencies": {
+            "armplaces": "0.2.0",
+            "contourpy": "1.4.0",
+            "cycler": "0.12.1",
+            "fonttools": "4.65.0",
+            "kiwisolver": "1.5.1",
+            "matplotlib": "3.10.1",
+            "networkx": "3.4.2",
+            "numpy": "2.2.6",
+            "packaging": "26.3",
+            "pillow": "12.3.0",
+            "pip": "24.0",
+            "pyparsing": "3.3.3",
+            "python-dateutil": "2.9.0.post0",
+            "ruff": "0.11.13",
+            "scipy": "1.15.3",
+            "six": "1.17.0"
+          }
+        },
+        "status": "complete"
+      }
+    }
+  ],
+  "source_sha256": "0206317f6b9b3046044b66f2ef7f7e15e2245464fd62ae79696de168437f3e7e",
+  "runner_sha256": "3ee6551c1433c06b634dd7e8e65d4fcee698d4898d0170caecf0ea079c776160"
+}

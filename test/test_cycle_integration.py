@@ -14,7 +14,8 @@ from simulation.verify import verify_artifacts
 
 class CycleIntegrationTests(unittest.TestCase):
     def test_flags_preserve_random_bouts_and_standard_ranking(self):
-        config=Config(participants=16)
+        # Preserve the historical random fixture that exercises a residual cycle.
+        config=Config(participants=16,dr=200)
         ratings,draw=generate_field(config,10)
         baseline=simulate(config,'elo',ratings,draw,repeat=10,grin_tour=True)
         combined=simulate(config,'elo',ratings,draw,repeat=10,grin_tour=True,
@@ -40,7 +41,7 @@ class CycleIntegrationTests(unittest.TestCase):
     def test_export_verifier_recomputes_scores_and_activation(self):
         with tempfile.TemporaryDirectory() as directory:
             path=Path(directory)
-            summary=run_experiments(Config(participants=16,repeats=12),['elo'],True,path,
+            summary=run_experiments(Config(participants=16,repeats=12,dr=200),['elo'],True,path,
                                     grin_cycle_score=True)
             self.assertEqual(summary['elo']['cycle_activated'],2)
             self.assertEqual(summary['elo']['cycle_success'],2)

@@ -41,6 +41,10 @@ def main(argv=None):
                             help=f'Default: {getattr(defaults, name)}')
     parser.add_argument('--distribution', choices=DISTRIBUTIONS, default=defaults.distribution,
                         help='Rating distribution; beta-prime and uniform default to [600, 1900)')
+    parser.add_argument('--tire-formula', choices=('exponential', 'legacy'), default=defaults.tire_formula,
+                        help='Updated PDF exponential (default), or the historical curve and load')
+    parser.add_argument('--tire-exponent-sign', type=int, choices=(-1, 1), default=defaults.tire_exponent_sign,
+                        help='1 (default): confirmed decreasing strength; -1: literal PDF, strength grows')
     parser.add_argument('--unbounded-beta-prime', action='store_true',
                         help='Disable the beta-prime default bounds; use with old alpha/beta/scale to reproduce historical runs')
     parser.add_argument('--output', type=Path, default=Path('results/comparison'), help='Output directory (overwrites previous run files)')

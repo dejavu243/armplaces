@@ -1,7 +1,8 @@
 """Zhivora-Tour: fixed leading places, win groups, last winner's place.
 
-The default fixes places 1–6, reproducing the normal power-of-two path of the
-supplied Unit11.pas (1–4, then 5–6 by their last winners). fixed_top=4 is the
+The default fixes places 1–6, using the normal path of the supplied Unit11.pas
+(1–4, then 5–6 by their last winners), also supported for N=22 when its final
+eliminations satisfy the same structural checks. fixed_top=4 is the
 alternative from the initial prose description.
 The group pass follows lines 1530–1570, including stable input order and temporary
 keys for an opponent whose place is not assigned yet. No initial ratings are used.
@@ -17,8 +18,8 @@ def rank_tournament_zhivora(names: dict, pairs: list, *, fixed_top: int = 6) -> 
     if history['status'] != 'ok':
         return {key: history[key] for key in ('status', 'reason', 'places')}
     participants = list(names.values())
-    if fixed_top == 6 and len(participants) not in (1, 2, 3, 4, 8, 16, 32):
-        raise ValueError('The Pascal fixed-top-six path requires N=8,16,32 or N<=4; irregular 5–6 rules need weight data')
+    if fixed_top == 6 and len(participants) not in (1, 2, 3, 4, 8, 16, 22, 32):
+        raise ValueError('The Pascal fixed-top-six path requires N=8,16,22,32 or N<=4; irregular 5–6 rules need weight data')
     places = {name: place for name, place in history['places'].items() if place <= 4}
     if fixed_top == 6 and len(participants) > 4:
         candidates = [name for name in participants if history['places'][name] in (5, 6)]

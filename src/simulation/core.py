@@ -36,7 +36,7 @@ class Config:
     alpha: float = BETA_PRIME_ALPHA
     beta: float = BETA_PRIME_BETA
     scale: float = BETA_PRIME_SCALE
-    dr: float = 200.0
+    dr: float = 167.0
     k: float = 160.0
     fatigue_rate: float = .05
     distribution: str = 'beta-prime'
@@ -46,10 +46,12 @@ class Config:
     rating_min: float | None = None
     rating_max: float | None = None
     tire_floor: float = .85
-    tire_reference: float = .90
-    tire_c: float = 400.0
+    tire_reference: float = .85
+    tire_c: float = 334.0
     tire_bouts: int = 3
     unbounded_beta_prime: bool = False
+    tire_formula: str = 'exponential'
+    tire_exponent_sign: int = 1
 
     def rating_bounds(self):
         """Resolve explicit bounds or the distribution's default range."""
@@ -84,9 +86,16 @@ class Config:
             raise ValueError('weibull-shape, weibull-scale and tire-c must be finite and positive')
         if not isfinite(self.weibull_location) or self.weibull_location < 0:
             raise ValueError('weibull-location must be finite and nonnegative')
+        if self.tire_formula not in ('exponential', 'legacy'):
+            raise ValueError('tire-formula must be exponential or legacy')
         if (not all(isfinite(x) for x in (self.tire_floor, self.tire_reference))
-                or not 0 < self.tire_floor < self.tire_reference <= 1):
-            raise ValueError('Expected 0 < tire-floor < tire-reference <= 1')
+                or not 0 < self.tire_floor < 1 or not 0 < self.tire_reference <= 1):
+            raise ValueError('Expected 0 < tire-floor < 1 and 0 < tire-reference <= 1')
+        if self.tire_formula == 'legacy' and self.tire_floor >= self.tire_reference:
+            raise ValueError('Legacy formula requires tire-floor < tire-reference')
+        if (isinstance(self.tire_exponent_sign, bool)
+                or not isinstance(self.tire_exponent_sign, int) or self.tire_exponent_sign not in (-1, 1)):
+            raise ValueError('tire-exponent-sign must be -1 (PDF) or 1 (decay)')
         if isinstance(self.tire_bouts, bool) or not isinstance(self.tire_bouts, int) or self.tire_bouts < 1:
             raise ValueError('tire-bouts must be a positive integer')
         if (self.rating_min is None) != (self.rating_max is None):
@@ -158,7 +167,7 @@ def build_bracket(n: int) -> Bracket:
                            for stage, (winner, loser) in zip(stages, routes, strict=True)))
 
 
-def elo_probability(a: float, b: float, dr: float = 200.) -> float:
+def elo_probability(a: float, b: float, dr: float = 167.) -> float:
     if not all(isfinite(x) for x in (a, b, dr)) or dr <= 0:
         raise ValueError('Elo inputs must be finite and dr positive')
     # Subtract first: equal huge ratings with tiny dr must still give exactly 1/2.
@@ -209,14 +218,25 @@ def generate_field(config: Config, repeat: int):
 
 
 def tire_effective_rating(rating: float, fatigue: float, config: Config) -> float:
-    """Article fatigue curve with a valid positive base and a fixed lower limit."""
+    """Updated PDF curve, with an explicit sign; legacy retains the old floor."""
     if not isfinite(rating) or rating <= 0 or not isfinite(fatigue) or fatigue < 0:
         raise ValueError('Expected a finite positive rating and finite nonnegative fatigue')
     if fatigue == 0 or config.tire_reference == 1:
         return rating
-    base = (config.tire_reference-config.tire_floor)/(1-config.tire_floor)
-    factor = config.tire_floor + (1-config.tire_floor)*exp(log(base)*(fatigue/config.tire_c/config.tire_bouts))
-    return rating*factor
+    exponent = fatigue/config.tire_c/config.tire_bouts
+    if config.tire_formula == 'legacy':
+        base = (config.tire_reference-config.tire_floor)/(1-config.tire_floor)
+        factor = config.tire_floor + (1-config.tire_floor)*exp(log(base)*exponent)
+    else:
+        # Positive sign was confirmed by the user; -1 reproduces the PDF literally.
+        try:
+            factor = exp(log(config.tire_reference)*config.tire_exponent_sign*exponent)
+        except OverflowError as exc:
+            raise ValueError('Nonfinite effective rating; choose less extreme fatigue parameters') from exc
+    effective = rating*factor
+    if not isfinite(effective):
+        raise ValueError('Nonfinite effective rating; choose less extreme fatigue parameters')
+    return effective
 
 
 def simulate(config: Config, model: str, ratings: list[float], draw: list[int],
@@ -290,7 +310,8 @@ def simulate(config: Config, model: str, ratings: list[float], draw: list[int],
             entry.update(p_a=probability, p_start_a=baseline,
                          effective_a=effective_a, effective_b=effective_b)
             if model == 'elo-tire':
-                load = abs(config.tire_c-(effective_a-effective_b))
+                load = (abs(config.tire_c-(effective_a-effective_b)) if config.tire_formula == 'legacy'
+                        else max(0., config.tire_c-abs(effective_a-effective_b)))
                 fatigue[a] += load
                 fatigue[b] += load
                 if not all(isfinite(fatigue[who]) for who in (a, b)):

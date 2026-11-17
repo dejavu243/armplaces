@@ -62,34 +62,64 @@ class DistributionTests(unittest.TestCase):
                        Config(rating_min=800, rating_max=float('inf')),
                        Config(distribution='weibull', rating_min=100, rating_max=852),
                        Config(weibull_shape=0), Config(weibull_scale=0), Config(weibull_location=-1),
-                       Config(tire_floor=.9, tire_reference=.85), Config(tire_reference=1.1),
+                       Config(tire_formula='legacy', tire_floor=.9, tire_reference=.85),
+                       Config(tire_reference=1.1), Config(tire_reference=0), Config(tire_formula='unknown'),
+                       Config(tire_exponent_sign=0), Config(tire_exponent_sign=True),
                        Config(tire_floor=0), Config(tire_c=0), Config(tire_bouts=0), Config(tire_bouts=1.5)):
             with self.subTest(config=config), self.assertRaises(ValueError):
                 config.validate()
 
 
 class TireTests(unittest.TestCase):
-    def test_curve_control_points_and_limit(self):
+    def test_confirmed_decay_and_literal_pdf_alternative(self):
         config = Config()
         self.assertEqual(tire_effective_rating(1000, 0, config), 1000)
-        self.assertAlmostEqual(tire_effective_rating(1000, 1200, config), 900)
-        self.assertAlmostEqual(tire_effective_rating(1000, 1e300, config), 850)
-        values = [tire_effective_rating(1000, s, config) for s in (0, 400, 800, 1200, 5000)]
-        self.assertEqual(values, sorted(values, reverse=True))
+        self.assertAlmostEqual(tire_effective_rating(1000, 1002, config), 850)
+        self.assertAlmostEqual(tire_effective_rating(1000, 2004, config), 722.5)
+        self.assertEqual(tire_effective_rating(1000, 1e300, config), 0)
+        literal = replace(config, tire_exponent_sign=-1)
+        self.assertAlmostEqual(tire_effective_rating(1000, 1002, literal), 1000/.85)
+        self.assertAlmostEqual(tire_effective_rating(1000, 2004, literal), 1000/.85**2)
+        with self.assertRaisesRegex(ValueError, 'Nonfinite effective rating'):
+            tire_effective_rating(1000, 1e300, literal)
+        legacy = replace(config, tire_formula='legacy', tire_reference=.9, tire_c=400)
+        self.assertAlmostEqual(tire_effective_rating(1000, 1200, legacy), 900)
+        self.assertAlmostEqual(tire_effective_rating(1000, 1e300, legacy), 850)
 
-    def test_equal_bouts_and_signed_load(self):
+    def test_equal_bouts_and_symmetric_load(self):
         config = Config(participants=2)
         result = simulate(config, 'elo-tire', [1000, 1000], [0, 1], rng=FixedRandom([.1, .9, .1]))
         self.assertTrue(result['reset'])
         for index, bout in enumerate(result['bouts']):
             self.assertEqual(bout['p_a'], .5)
-            self.assertEqual(bout['fatigue_before_a'], 400*index)
-            self.assertEqual(bout['fatigue_after_a'], 400*(index+1))
+            self.assertEqual(bout['fatigue_before_a'], 334*index)
+            self.assertEqual(bout['fatigue_after_a'], 334*(index+1))
             self.assertEqual(bout['fatigue_after_a'], bout['fatigue_after_b'])
         forward = simulate(config, 'elo-tire', [1000, 1100], [0, 1], rng=FixedRandom([.1]*3))
         backward = simulate(config, 'elo-tire', [1000, 1100], [1, 0], rng=FixedRandom([.1]*3))
-        self.assertEqual(forward['bouts'][0]['fatigue_after_a'], 500)
-        self.assertEqual(backward['bouts'][0]['fatigue_after_a'], 300)
+        self.assertEqual(forward['bouts'][0]['fatigue_after_a'], 234)
+        self.assertEqual(backward['bouts'][0]['fatigue_after_a'], 234)
+
+    def test_load_at_and_beyond_threshold_in_both_orders(self):
+        config = Config(participants=2)
+        for difference in (0., 100., 333., 334., 335., 400., 1000., 1e300):
+            for draw in ([0, 1], [1, 0]):
+                result = simulate(config, 'elo-tire', [1000., 1000.+difference], draw,
+                                  rng=FixedRandom([.1]*3))
+                bout = result['bouts'][0]
+                self.assertEqual(bout['fatigue_after_a'], max(0., 334-difference))
+                self.assertEqual(bout['fatigue_after_b'], bout['fatigue_after_a'])
+
+    def test_load_uses_effective_ratings_before_bout(self):
+        config = Config(participants=3)
+        result = simulate(config, 'elo-tire', [1000., 1000., 1000.], [0, 1, 2],
+                          rng=FixedRandom([.1]*5))
+        bout = result['bouts'][1]
+        expected = 1000*.85**(1/3)
+        self.assertAlmostEqual(bout['effective_a'], 1000)
+        self.assertAlmostEqual(bout['effective_b'], expected)
+        self.assertAlmostEqual(bout['fatigue_after_a'], 334-(1000-expected))
+        self.assertAlmostEqual(bout['fatigue_after_b'], 668-(1000-expected))
 
     def test_disabled_fatigue_matches_elo_and_all_sizes(self):
         for n in range(1, 33):
@@ -191,6 +221,18 @@ class TireArtifactTests(unittest.TestCase):
             records = [line for line in (path/'tournaments.jsonl').read_text().splitlines()
                        if json.loads(line)['model'] == 'elo']
             (path/'tournaments.jsonl').write_text('\n'.join(records)+'\n')
+            self.assertTrue(verify_artifacts(path))
+
+    def test_legacy_fatigue_exports_without_formula_tag_remain_readable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            config = Config(participants=3, repeats=2, dr=200, tire_formula='legacy',
+                            tire_reference=.9, tire_c=400)
+            run_experiments(config, ['elo-tire'], True, path, grin_cycle_score=True)
+            manifest = json.loads((path/'config.json').read_text())
+            manifest['config'].pop('tire_formula')
+            manifest['config'].pop('tire_exponent_sign')
+            (path/'config.json').write_text(json.dumps(manifest))
             self.assertTrue(verify_artifacts(path))
 
     def test_corrupt_csv_and_coverage_are_rejected(self):
