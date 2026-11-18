@@ -20,6 +20,8 @@ beta-prime с 22 участниками, единый HTML-протокол, CSV
 показаны добавка ΔS и накопленные S до и после боя. При накоплении S нет деления;
 1002=3×334 используется только в показателе степени эффективного рейтинга.
 
+[Скачать архив обеих серий N=17 и N=27](docs/examples/17_27.zip).
+
 ```bash
 .venv/bin/python scripts/render_n22_examples.py --participants 17 --repeats 10
 .venv/bin/python scripts/render_n22_examples.py --participants 27 --repeats 10
