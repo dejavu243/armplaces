@@ -44,13 +44,15 @@ def write_batch_report(root, report, sizes, models, repeats, smoke):
              f'Распределения: beta-prime (α={beta["alpha"]:g}, β={beta["beta"]:g}, scale={beta["scale"]:g}), {beta_description};',
              f'Weibull ({weibull["weibull_shape"]:g}, scale={weibull["weibull_scale"]:g}, location={weibull["weibull_location"]:g}) без усечения;',
              f'uniform [{uniform_bounds[0]:g},{uniform_bounds[1]:g}).',
-             'elo-tire: A=0.85, A′=0.90, C=400, N_f=3; dR=200; K=160.',
+             f'elo-tire: формула={beta["tire_formula"]}, знак степени={beta["tire_exponent_sign"]}; '
+             f'A′={beta["tire_reference"]:g}, C={beta["tire_c"]:g}, N_f={beta["tire_bouts"]}; '
+             f'dR={beta["dr"]:g}; K={beta["k"]:g}.',
              'Границы — параметры эксперимента, не универсальные границы рейтингов.',
              'Сравнение распределений включает различия их формы и масштаба.', '']
     if not beta['unbounded_beta_prime']:
         lines += ['Beta-prime откалиброван по **187 реальным рейтингам**, все записи учтены.',
                   '[Данные и метод подбора](beta-prime-calibration.md); [параметры и диагностика](beta-prime-fit.json).',
-                  'Вне границ кандидаты отбрасываются и выбираются заново. Усталость, dR и сетка не изменены.', '']
+                  'Вне границ кандидаты отбрасываются и выбираются заново.', '']
     complete_elo = sum(item['grin_tour']['samples'] for summary in summaries.values() for item in summary.values())
     complete_cycle = sum(item['grin_cycle_score']['samples'] for summary in summaries.values() for item in summary.values())
     activated = sum(item['cycle_activated'] for summary in summaries.values() for item in summary.values())
@@ -114,8 +116,8 @@ def write_batch_report(root, report, sizes, models, repeats, smoke):
                 baseline[distribution, cells[1]] = (float(cells[5]), float(cells[9]))
         lines += ['## Сравнение с прежней серией, N=32', '',
                   'В прежней серии beta-prime: α=2, β=3, scale=1000 без границ; uniform [800,2400).',
-                  'В новой серии меняются параметры beta-prime и диапазоны beta-prime/uniform.',
-                  'Вейбулл, dR, усталость, жеребьёвка и число повторов сохранены.',
+                  'Текущие параметры рейтингов, усталости и dR указаны выше.',
+                  'Это сравнение запусков в целом; влияние отдельных изменений здесь не изолировано.',
                   f'Прежние цифры взяты из отчёта в Git-коммите `{baseline_commit}`;',
                   'отдельная копия старого отчёта в текущем дереве не хранится.', '',
                   '| Распределение | Модель | MAE cycle прежде | MAE cycle теперь | Сильнейший прежде | Сильнейший теперь |',
@@ -127,9 +129,6 @@ def write_batch_report(root, report, sizes, models, repeats, smoke):
                     item = summaries[distribution, 32][model]
                     lines.append(f'| {distribution} | {model} | {old_mae:.6f} | '
                                  f'{item["grin_cycle_score"]["mae"]:.6f} | {old_win:.6f} | {item["strongest_win_rate"]:.6f} |')
-        lines += ['', 'Более высокая ошибка новой beta-prime модели означает более трудный,',
-                  'приближённый к предоставленным рейтингам состав участников. Старый тяжёлый хвост',
-                  'создавал очень сильных лидеров и облегчал определение победителя.', '']
     if not smoke and not beta['unbounded_beta_prime']:
         lines += ['## Выводы', '',
                   'Калибровка устранила неподходящий тяжёлый хвост beta-prime; границы исключают',
@@ -147,15 +146,10 @@ def write_batch_report(root, report, sizes, models, repeats, smoke):
                          f'{item["grin_tour"]["mae"]:.6f} | {item["grin_cycle_score"]["mae"]:.6f} | '
                          f'{item["strongest_win_rate"]:.2%} |')
         lines += ['', 'Метрика сетки использует средние ранги групп с общими местами; графовые методы',
-                  'назначают индивидуальные места. На Вейбулле полная детализация уступает сетке по MAE.',
-                  '`grin-cycle` предпочтительнее рейтингового резерва на этой серии и сохраняет оценку',
-                  'без доступа к исходной силе. Призёры закреплены по решающим боям.', '',
-                  '`strong-win` — контроль с гарантированной победой более сильного. Обычный `elo`',
-                  'точнее обеих моделей усталости по MAE во всех девяти сочетаниях N и распределения.',
-                  'Усталость увеличивает отклонения от исходной силы; коэффициенты усталости',
-                  'остаются экспериментальными и не подбирались по этому файлу рейтингов.', '',
-                  'Uniform даёт наименьшую MAE вероятностных моделей при N=32 в новом наборе параметров.',
-                  'Это сравнение заданных составов участников: формы и масштабы распределений различаются.', '']
+                  'назначают индивидуальные места. Призёры закреплены по решающим боям.',
+                  '`strong-win` — контроль с гарантированной победой более сильного.',
+                  'Коэффициенты усталости остаются экспериментальными и не подбирались по файлу рейтингов.',
+                  'Сравнение распределений включает различия их формы и масштаба.', '']
     command = '.venv/bin/python scripts/run_elo_tire_experiment.py'
     if smoke:
         command += ' --smoke --output '+str(root)
@@ -163,6 +157,8 @@ def write_batch_report(root, report, sizes, models, repeats, smoke):
         command += ' --legacy-ratings --output '+str(root)
     else:
         command += f' --rating-min {beta_bounds[0]:g} --rating-max {beta_bounds[1]:g} --output '+str(root)
+    if beta['tire_formula'] == 'legacy':
+        command += ' --legacy-formulas'
     lines += ['## Артефакты и воспроизведение', '',
               'δ = итоговое место − место по исходному рейтингу. Дисперсия генеральная (ddof=0),',
               'среднее — абсолютное расстояние. Максимум вниз = max(0,max δ), вверх = max(0,−min δ).',
@@ -187,6 +183,7 @@ def main():
     parser.add_argument('--rating-min', type=float, help='Beta-prime and uniform lower bound; default 600')
     parser.add_argument('--rating-max', type=float, help='Beta-prime and uniform upper bound; default 1900')
     parser.add_argument('--legacy-ratings', action='store_true', help='Reproduce beta-prime (2,3,1000) unbounded and uniform [800,2400)')
+    parser.add_argument('--legacy-formulas', action='store_true', help='Historical fatigue curve/load, A′=.90, C=400, dR=200')
     args = parser.parse_args()
     sizes = (16,) if args.smoke else (8, 16, 32)
     models = ('elo', 'elo-tire') if args.smoke else MODELS
@@ -196,12 +193,15 @@ def main():
     if args.legacy_ratings and args.rating_min is not None:
         parser.error('legacy-ratings cannot be combined with custom bounds')
     output = args.output or Path('results/elo-tire-legacy' if args.legacy_ratings else
-                               ('results/elo-tire-ci' if args.smoke else 'results/elo-tire-calibrated'))
-    report = args.report or (output/'batch-report.md' if args.smoke or args.legacy_ratings else Path('docs/elo-tire-report.md'))
+                               ('results/elo-tire-ci' if args.smoke else 'results/elo-tire-current'))
+    report = args.report or (output/'batch-report.md' if args.smoke or args.legacy_ratings or args.legacy_formulas
+                             else Path('docs/elo-tire-current-report.md'))
     logging.basicConfig(level=logging.INFO, format='%(levelname)s %(message)s')
     for distribution in DISTRIBUTIONS:
         for n in sizes:
             parameters = {'participants': n, 'repeats': repeats, 'distribution': distribution}
+            if args.legacy_formulas:
+                parameters.update(tire_formula='legacy', tire_floor=.85, tire_reference=.90, tire_c=400, dr=200)
             if args.legacy_ratings:
                 parameters.update(alpha=2, beta=3, scale=1000,
                                   unbounded_beta_prime=distribution == 'beta-prime')

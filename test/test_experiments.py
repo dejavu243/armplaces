@@ -83,7 +83,8 @@ class ExperimentTests(unittest.TestCase):
         import csv
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)
-            summary = run_experiments(Config(participants=16, repeats=20), ['elo'], True, path)
+            # This historical fixture must actually reach the rating fallback.
+            summary = run_experiments(Config(participants=16, repeats=20, dr=200), ['elo'], True, path)
             self.assertEqual(summary['elo']['grin_partial_rate'], 0)
             self.assertEqual(summary['elo']['grin_undefined_rate'], 0)
             self.assertTrue(verify_artifacts(path))

@@ -40,8 +40,12 @@ def verify_bout_model(result, config, schema):
                 if result['model'] == 'elo-stamina':
                     value *= (1-config.fatigue_rate)**played[who]
                 elif result['model'] == 'elo-tire':
-                    base = (config.tire_reference-config.tire_floor)/(1-config.tire_floor)
-                    value *= config.tire_floor + (1-config.tire_floor)*base**(fatigue[who]/config.tire_c/config.tire_bouts)
+                    exponent = fatigue[who]/config.tire_c/config.tire_bouts
+                    if config.tire_formula == 'legacy':
+                        base = (config.tire_reference-config.tire_floor)/(1-config.tire_floor)
+                        value *= config.tire_floor + (1-config.tire_floor)*base**exponent
+                    else:
+                        value *= config.tire_reference**(config.tire_exponent_sign*exponent)
                 if not isclose(value, bout['effective_'+side], rel_tol=1e-12, abs_tol=1e-12):
                     raise ValueError('Incorrect effective rating')
                 effective[side] = value
@@ -54,7 +58,11 @@ def verify_bout_model(result, config, schema):
                     or (probability == 1 and bout['winner'] == b)):
                 raise ValueError('Impossible winner for deterministic probability')
             if result['model'] == 'elo-tire':
-                load = abs(config.tire_c-(effective['a']-effective['b']))
+                if config.tire_formula == 'legacy':
+                    load = abs(config.tire_c-(effective['a']-effective['b']))
+                else:
+                    difference = abs(effective['a']-effective['b'])
+                    load = config.tire_c-difference if difference < config.tire_c else 0.
                 fatigue[a] += load
                 fatigue[b] += load
             played[a] += 1
@@ -249,6 +257,12 @@ def verify_artifacts(directory: Path | str):
     require_finite(manifest)
     require_finite(summary)
     parameters = dict(manifest['config'])
+    # A missing formula tag identifies exports made before the revised PDF.
+    if 'tire_formula' not in parameters:
+        parameters.update(tire_formula='legacy')
+        parameters.setdefault('dr', 200.)
+        parameters.setdefault('tire_reference', .90)
+        parameters.setdefault('tire_c', 400.)
     # Earlier v4/v5 exports predate calibrated, bounded beta-prime defaults.
     if 'unbounded_beta_prime' not in parameters:
         distribution = parameters.get('distribution', 'beta-prime')
@@ -292,7 +306,7 @@ def verify_artifacts(directory: Path | str):
         if (any(not isinstance(manifest[name], bool) for name in ranking_names)
                 or isinstance(manifest['zhivora_fixed_top'], bool) or manifest['zhivora_fixed_top'] not in (4, 6)):
             raise ValueError('Invalid ranking controls')
-        if manifest['zhivora_tour'] and manifest['zhivora_fixed_top'] == 6 and n not in (1, 2, 3, 4, 8, 16, 32):
+        if manifest['zhivora_tour'] and manifest['zhivora_fixed_top'] == 6 and n not in (1, 2, 3, 4, 8, 16, 17, 22, 27, 32):
             raise ValueError('Unsupported Pascal top-six category')
         for total in totals.values():
             total.update(far_tour=[], zhivora_tour=[],

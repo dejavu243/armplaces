@@ -79,6 +79,9 @@ def report_markdown(config, summary, *, zhivora_fixed_top=None):
     lines = ['# ArmPlaces: результаты эксперимента', '',
              f'N={config.participants}; повторов на модель: {config.repeats}; seed={config.seed}.',
              f'Распределение: `{config.distribution}`; границы: {config.rating_bounds() or "без усечения"}.', '',
+             f'dR={config.dr:g}; K={config.k:g}; формула усталости: `{config.tire_formula}`; '
+             f'A′={config.tire_reference:g}; C={config.tire_c:g}; N_f={config.tire_bouts}; '
+             f'знак степени={config.tire_exponent_sign}.', '',
              '`grin-cycle` — основной метод без исходных рейтингов; `grin-elo` использует рейтинговый резерв.', '',
              '| Модель | Завершено | Сильнейший победил | MAE сетки | Spearman сетки | grin-elo: полных | grin-elo: только призёры | grin-elo: без мест | MAE grin-elo | Spearman grin-elo |',
              '|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|']
@@ -151,8 +154,8 @@ def run_experiments(config: Config, models, grin_tour: bool, output: Path | str,
     extended = far_tour or zhivora_tour
     if zhivora_tour and (isinstance(zhivora_fixed_top, bool) or zhivora_fixed_top not in (4, 6)):
         raise ValueError('zhivora-fixed-top must be 4 or 6')
-    if zhivora_tour and zhivora_fixed_top == 6 and config.participants not in (1, 2, 3, 4, 8, 16, 32):
-        raise ValueError('Pascal top-six mode requires N=8,16,32 or N<=4')
+    if zhivora_tour and zhivora_fixed_top == 6 and config.participants not in (1, 2, 3, 4, 8, 16, 17, 22, 27, 32):
+        raise ValueError('Pascal top-six mode requires N=8,16,17,22,27,32 or N<=4')
     ranking_names = ALL_RANKING_NAMES if extended else RANKING_NAMES
     enabled = {'grin_tour': grin_tour, 'grin_cycle_score': grin_cycle_score,
                'far_tour': far_tour, 'zhivora_tour': zhivora_tour}

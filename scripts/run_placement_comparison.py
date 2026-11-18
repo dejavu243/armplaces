@@ -38,7 +38,8 @@ def write_report(root, report, sizes, repeats, seed, fixed_top):
              f'**{total} турниров**, N={", ".join(map(str, sizes))}; по **{repeats} повторов**; seed={seed}.',
              f'На каждом турнире рассчитаны четыре метода: всего {4*total} оценок расстановки.', '',
              f'Beta-prime: α={first.alpha:g}, β={first.beta:g}, scale={first.scale:g}; [{bounds[0]:g},{bounds[1]:g}).',
-             f'Elo-tire: A={first.tire_floor:g}, A′={first.tire_reference:g}, C={first.tire_c:g}, '
+             f'Elo-tire: формула={first.tire_formula}, знак степени={first.tire_exponent_sign}; '
+             f'A′={first.tire_reference:g}, C={first.tire_c:g}, '
              f'N_f={first.tire_bouts}; dR={first.dr:g}; K={first.k:g}.',
              'Сетка DE_OLD_fix, случайная жеребьёвка. Все методы используют **одни и те же бои**.',
              f'Zhivora-Tour: **фиксированы места 1–{fixed_top}**. [Описание и сверка с Pascal](placement-methods.md).',
