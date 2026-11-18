@@ -59,7 +59,7 @@ class ZhivoraPlacementTests(unittest.TestCase):
                     for who, place in original['places'].items():
                         if place <= 3:
                             self.assertEqual(ranked[method]['places'][str(who)], place)
-                if n in (1, 2, 3, 4, 8, 16, 22, 32):
+                if n in (1, 2, 3, 4, 8, 16, 17, 22, 27, 32):
                     pascal = simulate(config, 'elo-tire', ratings, draw, repeat,
                                       far_tour=True, zhivora_tour=True)
                     self.assertEqual(pascal['zhivora_tour']['diagnostics']['fixed_top'], 6)
